@@ -1,0 +1,6 @@
+.ipynb_checkpoints/
+.idea
+__pycache__/
+catinous_log/
+checkpoints/
+/py_jotools/
