@@ -1,0 +1,5 @@
+key,value
+root_dir,/project/catinous/cat_data_harder/
+datasetfile,catsinom_hr_harder_dataset.csv
+batch_size,8
+trainsplit,train

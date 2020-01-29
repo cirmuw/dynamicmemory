@@ -21,6 +21,35 @@ class CatsinomModelGramCache(pl.LightningModule):
 
         self.hparams = hparams
 
+        self.trainingscache = {}
+        self.cachematrices = {}
+
+        self.gramlayers = [self.model.layer1[-1].conv1, self.model.layer2[-1].conv1, self.model.layer3[-1].conv1, self.model.layer4[-1].conv1]
+        self.register_hooks()
+
+
+    def gram_matrix(self, input):
+        #taken from: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
+        a, b, c, d = input.size()  # a=batch size(=1)
+        # b=number of feature maps
+        # (c,d)=dimensions of a f. map (N=c*d)
+
+        features = input.view(a * b, c * d)  # resise F_XL into \hat F_XL
+
+        G = torch.mm(features, features.t())  # compute the gram product
+
+        # we 'normalize' the values of the gram matrix
+        # by dividing by the number of element in each feature maps.
+        return G.div(a * b * c * d)
+
+    def gram_hook(self, m, input, output):
+        print(m, input[0].size(), output[0].size())
+        self.cachematrices[m] = self.gram_matrix(input[0])
+
+    def register_hooks(self):
+        for layer in self.gramlayers:
+            layer.register_forward_hook(self.gram_hook)
+
     def forward(self, x):
         return self.model(x)
 
@@ -75,7 +104,7 @@ class CatsinomModelGramCache(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        return DataLoader(CatsinomDataset(self.hparams.root_dir, self.hparams.datasetfile, split='train'), shuffle=self.hparams.dataset_shuffle, batch_size=self.hparams.batch_size, num_workers=4, drop_last=True)
+        return DataLoader(CatsinomDataset(self.hparams.root_dir, self.hparams.datasetfile, split=self.hparams.trainsplit), shuffle=self.hparams.dataset_shuffle, batch_size=self.hparams.batch_size, num_workers=4, drop_last=True)
 
     @pl.data_loader
     def val_dataloader(self):

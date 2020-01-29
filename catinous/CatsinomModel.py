@@ -75,7 +75,7 @@ class CatsinomModel(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        return DataLoader(CatsinomDataset(self.hparams.root_dir, self.hparams.datasetfile, split='train'), shuffle=True, batch_size=self.hparams.batch_size, num_workers=4, drop_last=True)
+        return DataLoader(CatsinomDataset(self.hparams.root_dir, self.hparams.datasetfile, split=self.hparams.trainsplit, iterations=self.hparams.train_iterations, batch_size=self.hparams.batch_size), shuffle=True, batch_size=self.hparams.batch_size, num_workers=4, drop_last=True)
 
     @pl.data_loader
     def val_dataloader(self):

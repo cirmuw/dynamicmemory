@@ -7,11 +7,16 @@ import numpy as np
 
 class CatsinomDataset(Dataset):
 
-    def __init__(self, root_dir, datasetfile, split='train'):
+    def __init__(self, root_dir, datasetfile, split='train', iterations=None, batch_size=None):
 
         df = pd.read_csv(datasetfile)
         self.df = df.loc[df.split==split]
         self.df = self.df.reset_index()
+
+        if iterations is not None:
+            self.df = self.df.sample(iterations*batch_size, replace=True)
+            self.df = self.df.reset_index()
+
         self.root_dir = root_dir
 
     def __len__(self):
