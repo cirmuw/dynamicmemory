@@ -38,9 +38,9 @@ class CatsinomDataset(Dataset):
         return np.tile(img, [3, 1, 1]), self.df.iloc[index].label, self.df.iloc[index].image
 
 
-class Catsinom_Dataset_CatineousStram(Dataset):
+class Catsinom_Dataset_CatineousStream(Dataset):
 
-    def __init__(self, root_dir, datasetfile, split='train', transition_phase_after = .8, slope):
+    def __init__(self, root_dir, datasetfile, split='train', transition_phase_after = .8):
 
         df = pd.read_csv(datasetfile)
         assert(set(['train']).issubset(df.split.unique()))
