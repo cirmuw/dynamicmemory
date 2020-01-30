@@ -1,5 +1,6 @@
 .ipynb_checkpoints/
 .idea
+.vscode
 __pycache__/
 catinous_log/
 checkpoints/
