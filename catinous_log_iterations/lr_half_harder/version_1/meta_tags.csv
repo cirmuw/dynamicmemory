@@ -1,6 +1,0 @@
-key,value
-root_dir,/project/catinous/cat_data_harder/
-datasetfile,catsinom_lr_half_harder_dataset.csv
-trainsplit,train_base
-batch_size,8
-train_iterations,3000
