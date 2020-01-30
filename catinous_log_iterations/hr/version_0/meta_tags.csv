@@ -1,0 +1,6 @@
+key,value
+root_dir,/project/catinous/cat_data/
+datasetfile,catsinom_hr_dataset.csv
+batch_size,8
+trainsplit,"['train', 'base_train']"
+train_iterations,3000

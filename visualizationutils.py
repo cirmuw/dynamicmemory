@@ -5,7 +5,6 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix, auc, roc_curve
 from scipy import interp
 import numpy as np
-import statannot
 import matplotlib.colors as mcolors
 
 
