@@ -35,7 +35,7 @@ class CatsinomDataset(Dataset):
         img = mut.intensity_window(img, low=-1024, high=400)
         img = mut.norm01(img)
 
-        return np.tile(img, [3, 1, 1]), self.df.iloc[index].label, self.df.iloc[index].image
+        return np.tile(img, [3, 1, 1]), self.df.iloc[index].label, self.df.iloc[index].image, self.df.iloc[index].res
 
 
 class Catsinom_Dataset_CatineousStream(Dataset):
@@ -59,7 +59,6 @@ class Catsinom_Dataset_CatineousStream(Dataset):
             old = hr.loc[hr.split=='train']
             new = lr.loc[np.logical_or(lr.split=='train',lr.split=='base_train')]
         
-        combds = pd.DataFrame()
         # old cases
         old_end = int(len(old)*transition_phase_after)
         combds = old.iloc[0:old_end]
@@ -67,8 +66,7 @@ class Catsinom_Dataset_CatineousStream(Dataset):
         old_max = len(old)-1
         new_idx = 0
         i = 0
-        print(old_end)
-        print(old_max)
+
         while old_idx<=old_max and (i/((old_max-old_end)*2) < 1):
             take_newclass = np.random.binomial(1,min(i/((old_max-old_end)*2),1))
             if take_newclass:
