@@ -6,7 +6,7 @@ import torchvision.models as models
 
 import pytorch_lightning as pl
 
-from catinous.CatsinomDataset import CatsinomDataset
+from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 import argparse
 
 class CatsinomModel(pl.LightningModule):
@@ -80,7 +80,13 @@ class CatsinomModel(pl.LightningModule):
     @pl.data_loader
     def val_dataloader(self):
         print(self.hparams.root_dir, self.hparams.datasetfile)
-        return DataLoader(CatsinomDataset(self.hparams.root_dir, self.hparams.datasetfile, split='val'), shuffle=True, batch_size=self.hparams.batch_size, num_workers=2)
+        if self.hparams.continous:
+            dl = DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir,
+                            self.hparams.datasetfile, split='train', direction=self.hparams.streamdirection),
+                            shuffle=False, batch_size=self.hparams.batch_size, num_workers=2)
+        else:
+            dl = DataLoader(CatsinomDataset(self.hparams.root_dir, self.hparams.datasetfile, split='val'), shuffle=True, batch_size=self.hparams.batch_size, num_workers=2)
+        return 
 
     @pl.data_loader
     def test_dataloader(self):

@@ -10,7 +10,7 @@ class CatsinomDataset(Dataset):
 
     def __init__(self, root_dir, datasetfile, split='train', iterations=None, batch_size=None):
 
-        df = pd.read_csv(datasetfile)
+        df = pd.read_csv(datasetfile, index_col=0)
         if type(split) is list:
             selection = np.any([df.split==x for x in split], axis=0)
         else:
@@ -42,15 +42,15 @@ class Catsinom_Dataset_CatineousStream(Dataset):
 
     def __init__(self, root_dir, datasetfile, split='train', transition_phase_after = .8, direction='lr->hr'):
 
-        df = pd.read_csv(datasetfile)
+        df = pd.read_csv(datasetfile, index_col=0)
         assert(set(['train']).issubset(df.split.unique()))
         assert(direction in ['lr->hr', 'hr->lr'])
         lr = df.loc[df.res=='lr']
         hr = df.loc[df.res=='hr']
 
         #makr sure they are random
-        lr = lr.sample(len(lr))
-        hr = hr.sample(len(hr))
+        lr = lr.sample(frac=1)
+        hr = hr.sample(frac=1)
 
         if direction == 'lr->hr':
             old = lr.loc[lr.split=='train']
@@ -59,7 +59,6 @@ class Catsinom_Dataset_CatineousStream(Dataset):
             old = hr.loc[hr.split=='train']
             new = lr.loc[np.logical_or(lr.split=='train',lr.split=='base_train')]
         
-        combds = pd.DataFrame()
         # old cases
         old_end = int(len(old)*transition_phase_after)
         combds = old.iloc[0:old_end]
@@ -67,8 +66,6 @@ class Catsinom_Dataset_CatineousStream(Dataset):
         old_max = len(old)-1
         new_idx = 0
         i = 0
-        print(old_end)
-        print(old_max)
         while old_idx<=old_max and (i/((old_max-old_end)*2) < 1):
             take_newclass = np.random.binomial(1,min(i/((old_max-old_end)*2),1))
             if take_newclass:
@@ -79,7 +76,7 @@ class Catsinom_Dataset_CatineousStream(Dataset):
                 old_idx+=1
             i+=1
         combds = combds.append(new.iloc[new_idx+1:])
-        combds.reset_index(inplace=True)
+        combds.reset_index(inplace=True, drop=True)
         self.df = combds
         self.root_dir = root_dir
 
