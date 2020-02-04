@@ -35,7 +35,7 @@ class CatsinomDataset(Dataset):
         img = mut.intensity_window(img, low=-1024, high=400)
         img = mut.norm01(img)
 
-        return np.tile(img, [3, 1, 1]), self.df.iloc[index].label, self.df.iloc[index].image
+        return np.tile(img, [3, 1, 1]), self.df.iloc[index].label, self.df.iloc[index].image, self.df.iloc[index].res
 
 
 class Catsinom_Dataset_CatineousStream(Dataset):
