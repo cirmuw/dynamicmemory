@@ -173,7 +173,7 @@ class CatsinomModelGramCache(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir, self.hparams.datasetfile, transition_phase_after=self.hparams.transition_phase_after), batch_size=self.hparams.batch_size, num_workers=4)
+        return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir, self.hparams.datasetfile, transition_phase_after=self.hparams.transition_phase_after, direction=self.hparams.direction), batch_size=self.hparams.batch_size, num_workers=4)
 
     @pl.data_loader
     def val_dataloader(self):
