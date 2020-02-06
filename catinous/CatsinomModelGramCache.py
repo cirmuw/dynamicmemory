@@ -59,32 +59,39 @@ class CatsinomModelGramCache(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y, filepath, res = batch
         self.grammatrices = []
+        misclassified = []
 
         if self.hparams.use_cache:
             torch.cuda.empty_cache()
 
             #updating the cache we are training on
             self.freeze()
+
+            #if not self.trainingscache.cachefull:
+            for ci in self.trainingscache:
+                if ci is not None:
+                    self.grammatrices = []
+                    y_img = self.forward(ci.img.float())
+                    #ci.update_prediction(y_img[0])
+                    grammatrix = [gm[0] for gm in self.grammatrices.copy()]
+                    ci.current_grammatrix = grammatrix
+
+            self.grammatrices = []
             y_batch = self.forward(x.float())
             batchgrammatrices = self.grammatrices.copy()
-
-            if not self.trainingscache.cachefull:
-                for ci in self.trainingscache:
-                    if ci is not None:
-                        self.grammatrices = []
-                        y_img = self.forward(ci.img.float())
-                        ci.update_prediction(y_img[0])
-                        grammatrix = [gm[0] for gm in self.grammatrices.copy()]
-                        ci.current_grammatrix = grammatrix
-
             y = y[:, None]
             for i, img in enumerate(x):
                 grammatrix = [bg[i] for bg in batchgrammatrices]
-                self.trainingscache.insert_element(CacheItem(img[None, :, :, :], y[i], filepath[i], res[i], y_batch[i], grammatrix))
+                new_ci = CacheItem(img[None, :, :, :], y[i], filepath[i], res[i], y_batch[i], grammatrix)
+                self.trainingscache.insert_element(new_ci)
+
+                if self.hparams.force_misclassified:
+                    if new_ci.misclassification:
+                        misclassified.append(new_ci)
 
             self.unfreeze()
 
-            x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size, self.hparams.shuffled_cache)
+            x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size, self.hparams.random_cache, misclassified)
 
             x = x.to(self.device)
             y = y.to(self.device)
@@ -187,13 +194,16 @@ class CacheItem():
         self.filepath = filepath
         self.res = res
         self.traincounter = 0
-        self.current_prediction = current_prediction
-        self.current_loss = F.binary_cross_entropy_with_logits(self.current_prediction, self.label.float())
+        self.update_prediction(current_prediction)
         self.current_grammatrix = current_grammatrix
 
     def update_prediction(self, current_prediction):
         self.current_prediction = current_prediction
         self.current_loss = F.binary_cross_entropy_with_logits(self.current_prediction, self.label.float())
+
+        y_sig = torch.sigmoid(current_prediction)
+        t = torch.tensor([0.5]).to(torch.device('cuda'))
+        self.misclassification = (self.label != ((y_sig > t) * 1))
 
     #needed for sorting the list according to current loss
     def __lt__(self, other):
@@ -209,12 +219,13 @@ class CatinousCache():
     def insert_element(self, item):
         if not self.cachefull:
             self.cachelist.append(item)
+            insertidx = len(self.cachelist)-1
             if len(self.cachelist) == self.cachemaximum:
                 self.cachefull = True
         else:
             assert(item.current_grammatrix is not None)
             insertidx = -1
-            mingramloss = 100
+            mingramloss = 1000
             for j, ci in enumerate(self.cachelist):
                 l_sum = 0.0
                 for i in range(len(item.current_grammatrix)):
@@ -226,21 +237,35 @@ class CatinousCache():
 
             self.cachelist[insertidx] = item
 
-    def get_training_batch(self, batchsize, randombatch=False):
+        return insertidx
+
+    #forceditems are in the batch, the others are chosen randomly
+    def get_training_batch(self, batchsize, randombatch=False, forceditems=None):
+        batchsize = min(batchsize, len(self.cachelist))
+
+        x = torch.empty(size=(batchsize, 3, 512, 512)) #TODO: read this from image and not fix it
+        y = torch.empty(size=(batchsize, 1))
+        j = 0
+
+        if forceditems is not None:
+            for ci in forceditems:
+                x[j] = ci.img
+                y[j] = ci.label
+                ci.traincounter += 1
+                j += 1
+
+            batchsize -= j
+
         if randombatch:
             random.shuffle(self.cachelist)
         else:
             self.cachelist.sort()
 
-        batchsize = min(batchsize, len(self.cachelist))
-
-        x = torch.empty(size=(batchsize, 3, 512, 512)) #TODO: read this from image and not fix it
-        y = torch.empty(size=(batchsize, 1))
-
-        for j, ci in enumerate(self.cachelist[-batchsize:]):
+        for ci in self.cachelist[-batchsize:]:
             x[j] = ci.img
             y[j] = ci.label
             ci.traincounter += 1
+            j += 1
 
         return x, y
 
