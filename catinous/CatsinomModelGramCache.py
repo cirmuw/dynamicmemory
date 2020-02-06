@@ -10,34 +10,38 @@ from catinous.CatsinomDataset import CatsinomDataset
 from catinous.CatsinomDataset import Catsinom_Dataset_CatineousStream
 import random
 
+
 class CatsinomModelGramCache(pl.LightningModule):
 
     def __init__(self, hparams, device=None):
         super(CatsinomModelGramCache, self).__init__()
 
         self.model = models.resnet50(pretrained=True)
-        self.model.fc = nn.Sequential(*[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
+        self.model.fc = nn.Sequential(
+            *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
 
         self.loss = nn.BCEWithLogitsLoss()
 
         self.hparams = hparams
-
-        self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum)
+        self.trainingscache = CatinousCache(
+            cachemaximum=self.hparams.cachemaximum)
         self.grammatrices = []
 
         self.device = device
 
-        self.gramlayers = [self.model.layer1[-1].conv1, self.model.layer2[-1].conv1, self.model.layer3[-1].conv1, self.model.layer4[-1].conv1]
+        self.gramlayers = [self.model.layer1[-1].conv1,
+                           self.model.layer2[-1].conv1,
+                           self.model.layer3[-1].conv1,
+                           self.model.layer4[-1].conv1]
         self.register_hooks()
 
-
     def gram_matrix(self, input):
-        #taken from: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
+        # taken from: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
         a, b, c, d = input.size()  # a=batch size(=1)
         # b=number of feature maps
         # (c,d)=dimensions of a f. map (N=c*d)
 
-        grams = list()
+        grams = []
 
         for i in range(a):
             features = input[i].view(b, c * d)  # resise F_XL into \hat F_XL
@@ -64,15 +68,15 @@ class CatsinomModelGramCache(pl.LightningModule):
         if self.hparams.use_cache:
             torch.cuda.empty_cache()
 
-            #updating the cache we are training on
+            # updating the cache we are training on
             self.freeze()
 
-            #if not self.trainingscache.cachefull:
+            # if not self.trainingscache.cachefull:
             for ci in self.trainingscache:
                 if ci is not None:
                     self.grammatrices = []
                     y_img = self.forward(ci.img.float())
-                    #ci.update_prediction(y_img[0])
+                    # ci.update_prediction(y_img[0])
                     grammatrix = [gm[0] for gm in self.grammatrices.copy()]
                     ci.current_grammatrix = grammatrix
 
@@ -107,7 +111,6 @@ class CatsinomModelGramCache(pl.LightningModule):
             tensorboard_logs = {'train_loss': loss}
             return {'loss': loss, 'log': tensorboard_logs}
 
-
     def validation_step(self, batch, batch_idx):
         x, y, img, res = batch
         self.grammatrices = []
@@ -116,18 +119,16 @@ class CatsinomModelGramCache(pl.LightningModule):
 
         y_sig = torch.sigmoid(y_hat)
 
-        t=torch.tensor([0.5]).to(torch.device('cuda'))
+        t = torch.tensor([0.5]).to(torch.device('cuda'))
         y_sig = (y_sig > t) * 1
-        acc = (y[:, None] == y_sig).float().sum()/len(y)
+        acc = (y[:, None] == y_sig).float().sum() / len(y)
 
-        if res[0] == 'lr': #TODO: this is not completly right...
+        if res[0] == 'lr':  # TODO: this is not completly right...
             return {'val_loss_lr': self.loss(y_hat, y[:, None].float()), 'val_acc_lr': acc}
         else:
             return {'val_loss_hr': self.loss(y_hat, y[:, None].float()), 'val_acc_hr': acc}
 
-
     def validation_end(self, outputs):
-
         val_loss_lr_mean = 0
         val_acc_lr_mean = 0
         val_loss_hr_mean = 0
@@ -144,20 +145,26 @@ class CatsinomModelGramCache(pl.LightningModule):
                 val_acc_hr_mean += output['val_acc_hr']
                 hr_count += 1
 
-        if lr_count>0:
+        if lr_count > 0:
             val_loss_lr_mean /= lr_count
             val_loss_lr_mean = val_loss_lr_mean.item()
             val_acc_lr_mean /= lr_count
             val_acc_lr_mean = val_acc_lr_mean.item()
-        if hr_count>0:
+        if hr_count > 0:
             val_loss_hr_mean /= hr_count
             val_loss_hr_mean = val_loss_hr_mean.item()
             val_acc_hr_mean /= hr_count
             val_acc_hr_mean = val_acc_hr_mean.item()
 
-
-        tensorboard_logs = {'val_loss_lr': val_loss_lr_mean, 'val_acc_lr': val_acc_lr_mean, 'val_loss_hr': val_loss_hr_mean, 'val_acc_hr': val_acc_hr_mean}
-        return {'avg_val_loss_lr': val_loss_lr_mean, 'avg_val_acc_lr': val_acc_lr_mean, 'avg_val_loss_hr': val_loss_hr_mean, 'avg_val_acc_hr': val_acc_hr_mean, 'log': tensorboard_logs}
+        tensorboard_logs = {'val_loss_lr': val_loss_lr_mean,
+                            'val_acc_lr': val_acc_lr_mean,
+                            'val_loss_hr': val_loss_hr_mean,
+                            'val_acc_hr': val_acc_hr_mean}
+        return {'avg_val_loss_lr': val_loss_lr_mean,
+                'avg_val_acc_lr': val_acc_lr_mean,
+                'avg_val_loss_hr': val_loss_hr_mean,
+                'avg_val_acc_hr': val_acc_hr_mean,
+                'log': tensorboard_logs}
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -165,7 +172,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         y_sig = torch.sigmoid(y_hat)
         t = torch.tensor([0.5]).to(torch.device('cuda'))
         y_sig = (y_sig > t) * 1
-        acc = (y[:, None] == y_sig).float().sum()/len(y)
+        acc = (y[:, None] == y_sig).float().sum() / len(y)
 
         return {'test_loss': self.loss(y_hat, y[:, None].float()), 'test_acc': acc}
 
@@ -173,18 +180,26 @@ class CatsinomModelGramCache(pl.LightningModule):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         avg_acc = torch.stack([x['test_acc'] for x in outputs]).mean()
         tensorboard_logs = {'test_loss': avg_loss, 'test_acc': avg_acc}
-        return {'test_loss': avg_loss, 'test_loss': avg_acc,  'log': tensorboard_logs}
+        return {'test_loss': avg_loss, 'test_acc': avg_acc, 'log': tensorboard_logs}
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.0001)
 
     @pl.data_loader
     def train_dataloader(self):
-        return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir, self.hparams.datasetfile, transition_phase_after=self.hparams.transition_phase_after, direction=self.hparams.direction), batch_size=self.hparams.batch_size, num_workers=4)
+        return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir,
+                                                           self.hparams.datasetfile,
+                                                           transition_phase_after=self.hparams.transition_phase_after),
+                          batch_size=self.hparams.batch_size, num_workers=4)
 
     @pl.data_loader
     def val_dataloader(self):
-        return DataLoader(CatsinomDataset(self.hparams.root_dir, self.hparams.datasetfile, split='val'), batch_size=4, num_workers=2)
+        return DataLoader(CatsinomDataset(self.hparams.root_dir,
+                                          self.hparams.datasetfile,
+                                          split='val'),
+                          batch_size=4,
+                          num_workers=2)
+
 
 class CacheItem():
 
@@ -199,7 +214,8 @@ class CacheItem():
 
     def update_prediction(self, current_prediction):
         self.current_prediction = current_prediction
-        self.current_loss = F.binary_cross_entropy_with_logits(self.current_prediction, self.label.float())
+        self.current_loss = F.binary_cross_entropy_with_logits(
+            self.current_prediction, self.label.float())
 
         y_sig = torch.sigmoid(current_prediction)
         t = torch.tensor([0.5]).to(torch.device('cuda'))
@@ -209,11 +225,12 @@ class CacheItem():
     def __lt__(self, other):
         return self.current_loss < other.current_loss
 
+
 class CatinousCache():
 
     def __init__(self, cachemaximum=256):
         self.cachefull = False
-        self.cachelist = list() #not sure if list is the best idea...
+        self.cachelist = []  # not sure if list is the best idea...
         self.cachemaximum = cachemaximum
 
     def insert_element(self, item):
@@ -229,7 +246,8 @@ class CatinousCache():
             for j, ci in enumerate(self.cachelist):
                 l_sum = 0.0
                 for i in range(len(item.current_grammatrix)):
-                    l_sum += F.mse_loss(item.current_grammatrix[i], ci.current_grammatrix[i], reduction='sum')
+                    l_sum += F.mse_loss(
+                        item.current_grammatrix[i], ci.current_grammatrix[i], reduction='sum')
 
                 if l_sum < mingramloss:
                     mingramloss = l_sum
@@ -243,7 +261,8 @@ class CatinousCache():
     def get_training_batch(self, batchsize, randombatch=False, forceditems=None):
         batchsize = min(batchsize, len(self.cachelist))
 
-        x = torch.empty(size=(batchsize, 3, 512, 512)) #TODO: read this from image and not fix it
+        # TODO: read this from image and not fix it
+        x = torch.empty(size=(batchsize, 3, 512, 512))
         y = torch.empty(size=(batchsize, 1))
         j = 0
 
