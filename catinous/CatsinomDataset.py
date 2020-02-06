@@ -44,7 +44,7 @@ class Catsinom_Dataset_CatineousStream(Dataset):
 
         df = pd.read_csv(datasetfile, index_col=0)
         assert(set(['train']).issubset(df.split.unique()))
-        assert(direction in ['lr->hr', 'hr->lr'])
+        assert(direction in ['lr->hr', 'hr->lr', 'lrcomplete->hr'])
         lr = df.loc[df.res=='lr']
         hr = df.loc[df.res=='hr']
 
@@ -55,6 +55,9 @@ class Catsinom_Dataset_CatineousStream(Dataset):
         if direction == 'lr->hr':
             old = lr.loc[lr.split=='train']
             new = hr.loc[np.logical_or(hr.split=='train',hr.split=='base_train')]
+        elif direction == 'lrcomplete->hr':
+            old = lr.loc[np.logical_or(lr.split=='train',lr.split=='base_train')]
+            new = hr.loc[np.logical_or(hr.split == 'train', hr.split == 'base_train')]
         else:
             old = hr.loc[hr.split=='train']
             new = lr.loc[np.logical_or(lr.split=='train',lr.split=='base_train')]
