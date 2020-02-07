@@ -95,7 +95,8 @@ class CatsinomModelGramCache(pl.LightningModule):
 
             self.unfreeze()
 
-            x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size, self.hparams.random_cache, misclassified)
+            x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size,
+                                                          self.hparams.random_cache, misclassified)
 
             x = x.to(self.device)
             y = y.to(self.device)
