@@ -77,7 +77,7 @@ class CatsinomModelGramCache(pl.LightningModule):
                     self.grammatrices = []
                     y_img = self.forward(ci.img.float())
                     # ci.update_prediction(y_img[0])
-                    grammatrix = [gm[0] for gm in self.grammatrices.copy()]
+                    grammatrix = [gm[0].cpu() for gm in self.grammatrices.copy()]
                     ci.current_grammatrix = grammatrix
 
             self.grammatrices = []
@@ -85,7 +85,7 @@ class CatsinomModelGramCache(pl.LightningModule):
             batchgrammatrices = self.grammatrices.copy()
             y = y[:, None]
             for i, img in enumerate(x):
-                grammatrix = [bg[i] for bg in batchgrammatrices]
+                grammatrix = [bg[i].cpu() for bg in batchgrammatrices]
                 new_ci = CacheItem(img[None, :, :, :], y[i], filepath[i], res[i], y_batch[i], grammatrix)
                 self.trainingscache.insert_element(new_ci)
 
