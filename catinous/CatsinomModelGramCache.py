@@ -1,39 +1,77 @@
+import argparse
+import logging
+import random
+
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 import torchvision.models as models
+from torch.utils.data import DataLoader
 
-import pytorch_lightning as pl
+from pprint import pprint
 
-from catinous.CatsinomDataset import CatsinomDataset
-from catinous.CatsinomDataset import Catsinom_Dataset_CatineousStream
-import random
+from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
+from . import utils
 
 
 class CatsinomModelGramCache(pl.LightningModule):
 
-    def __init__(self, hparams, device=None):
+    def __init__(self, hparams={}, device=None):
         super(CatsinomModelGramCache, self).__init__()
+        self.hparams = utils.default_params(self.get_default_hparams(), hparams)
+        self.hparams = argparse.Namespace(**self.hparams)
 
         self.model = models.resnet50(pretrained=True)
         self.model.fc = nn.Sequential(
             *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
 
         self.loss = nn.BCEWithLogitsLoss()
-
-        self.hparams = hparams
-        self.trainingscache = CatinousCache(
-            cachemaximum=self.hparams.cachemaximum)
-        self.grammatrices = []
-
         self.device = device
 
+        if self.hparams.continous:
+            self.init_cache_and_gramhooks()
+        else:
+            logging.info('No continous learning, following parameters are invalidated: \n'
+                         'transition_phase_after \n'
+                         'cachemaximum \n'
+                         'use_cache \n'
+                         'random_cache \n'
+                         'force_misclassified \n'
+                         'direction')
+            self.hparams.use_cache = False
+
+        pprint(vars(self.hparams))
+
+    def init_cache_and_gramhooks(self):
+        self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum)
+        self.grammatrices = []
         self.gramlayers = [self.model.layer1[-1].conv1,
                            self.model.layer2[-1].conv1,
                            self.model.layer3[-1].conv1,
                            self.model.layer4[-1].conv1]
         self.register_hooks()
+        logging.info('Gram hooks and cache initialized. Cachesize: %i' % self.hparams.cachemaximum)
+
+    @staticmethod
+    def get_default_hparams():
+        hparams = dict()
+        hparams['root_dir'] = '/project/catinous/cat_data/'
+        hparams['datasetfile'] = 'catsinom_combined_dataset.csv'
+        hparams['batch_size'] = 8
+        hparams['training_batch_size'] = 8
+        hparams['transition_phase_after'] = 0.7
+        hparams['cachemaximum'] = 128
+        hparams['use_cache'] = True
+        hparams['random_cache'] = True
+        hparams['force_misclassified'] = False
+        hparams['direction'] = 'lr->hr'
+        hparams['continous'] = True
+        hparams['noncontinous_steps'] = 3000
+        hparams['noncontinous_train_splits'] = ['train','base_train']
+        hparams['run_prefix'] = '1'
+
+        return hparams
 
     def gram_matrix(self, input):
         # taken from: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
@@ -77,12 +115,12 @@ class CatsinomModelGramCache(pl.LightningModule):
                     self.grammatrices = []
                     y_img = self.forward(ci.img.float())
                     # ci.update_prediction(y_img[0])
-                    grammatrix = [gm[0].cpu() for gm in self.grammatrices.copy()]
+                    grammatrix = [gm[0].cpu() for gm in self.grammatrices]
                     ci.current_grammatrix = grammatrix
 
             self.grammatrices = []
             y_batch = self.forward(x.float())
-            batchgrammatrices = self.grammatrices.copy()
+            batchgrammatrices = self.grammatrices
             y = y[:, None]
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu() for bg in batchgrammatrices]
@@ -95,7 +133,8 @@ class CatsinomModelGramCache(pl.LightningModule):
 
             self.unfreeze()
 
-            x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size, self.hparams.random_cache, misclassified)
+            x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size,
+                                                          self.hparams.random_cache, misclassified)
 
             x = x.to(self.device)
             y = y.to(self.device)
@@ -187,10 +226,18 @@ class CatsinomModelGramCache(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir,
-                                                           self.hparams.datasetfile,
-                                                           transition_phase_after=self.hparams.transition_phase_after),
-                          batch_size=self.hparams.batch_size, num_workers=4)
+        if self.hparams.continous:
+            return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir,
+                                                               self.hparams.datasetfile,
+                                                               transition_phase_after=self.hparams.transition_phase_after),
+                              batch_size=self.hparams.batch_size, num_workers=2)
+        else:
+            return DataLoader(CatsinomDataset(self.hparams.root_dir,
+                                              self.hparams.datasetfile,
+                                              iterations=self.hparams.noncontinous_steps,
+                                              batch_size=self.hparams.batch_size,
+                                              split=self.hparams.noncontinous_train_splits),
+                              batch_size=self.hparams.batch_size, num_workers=2)
 
     @pl.data_loader
     def val_dataloader(self):
@@ -198,7 +245,7 @@ class CatsinomModelGramCache(pl.LightningModule):
                                           self.hparams.datasetfile,
                                           split='val'),
                           batch_size=4,
-                          num_workers=2)
+                          num_workers=1)
 
 
 class CacheItem():
@@ -280,11 +327,12 @@ class CatinousCache():
         else:
             self.cachelist.sort()
 
-        for ci in self.cachelist[-batchsize:]:
-            x[j] = ci.img
-            y[j] = ci.label
-            ci.traincounter += 1
-            j += 1
+        if batchsize>0:
+            for ci in self.cachelist[-batchsize:]:
+                x[j] = ci.img
+                y[j] = ci.label
+                ci.traincounter += 1
+                j += 1
 
         return x, y
 
