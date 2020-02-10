@@ -8,7 +8,7 @@ import numpy as np
 
 class CatsinomDataset(Dataset):
 
-    def __init__(self, root_dir, datasetfile, split='train', iterations=None, batch_size=None):
+    def __init__(self, root_dir, datasetfile, split=['train'], iterations=None, batch_size=None):
 
         df = pd.read_csv(datasetfile, index_col=0)
         if type(split) is list:
