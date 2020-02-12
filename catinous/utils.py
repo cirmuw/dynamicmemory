@@ -1,4 +1,4 @@
-import pytorch_lightning.logging as pllogging
+import pytorch_lightning.loggers as pllogging
 from py_jotools import mut
 import argparse
 import pandas as pd

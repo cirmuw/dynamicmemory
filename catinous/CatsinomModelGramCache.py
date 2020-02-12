@@ -376,7 +376,7 @@ def trained_model(hparams):
         model.load_state_dict(torch.load( utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'))
         model.freeze()
     if hparams['continous']  and hparams['use_cache']:
-        df_cache = pd.read_csv('/project/catinous/trained_cache/continous_random_cache_run_0.csv')
+        df_cache = pd.read_csv(utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
 
     # always get the last version
     max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
