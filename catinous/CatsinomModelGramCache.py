@@ -1,6 +1,7 @@
 import argparse
 import logging
 import random
+import math
 
 import pytorch_lightning as pl
 import torch
@@ -64,6 +65,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['cachemaximum'] = 128
         hparams['use_cache'] = True
         hparams['random_cache'] = True
+        hparams['balance_cache'] = True
         hparams['force_misclassified'] = False
         hparams['direction'] = 'lr->hr'
         hparams['continous'] = True
@@ -280,10 +282,18 @@ class CatinousCache():
         self.cachelist = []  # not sure if list is the best idea...
         self.cachemaximum = cachemaximum
 
+        self.classcounter = {0: 0, 1: 0}
+
     def insert_element(self, item):
         if not self.cachefull:
-            self.cachelist.append(item)
-            insertidx = len(self.cachelist)-1
+            if self.hparams.balance_cache:
+                if self.classcounter[item.label] < math.ceil(self.cachemaximum/len(self.classcounter)):
+                    self.cachelist.append(item)
+                    insertidx = len(self.cachelist) - 1
+                    self.classcounter[item.label] += 1
+            else:
+                self.cachelist.append(item)
+                insertidx = len(self.cachelist)-1
             if len(self.cachelist) == self.cachemaximum:
                 self.cachefull = True
         else:
@@ -291,14 +301,15 @@ class CatinousCache():
             insertidx = -1
             mingramloss = 1000
             for j, ci in enumerate(self.cachelist):
-                l_sum = 0.0
-                for i in range(len(item.current_grammatrix)):
-                    l_sum += F.mse_loss(
-                        item.current_grammatrix[i], ci.current_grammatrix[i], reduction='sum')
+                if not self.hparams.balance_cache or ci.label==item.label:
+                    l_sum = 0.0
+                    for i in range(len(item.current_grammatrix)):
+                        l_sum += F.mse_loss(
+                            item.current_grammatrix[i], ci.current_grammatrix[i], reduction='sum')
 
-                if l_sum < mingramloss:
-                    mingramloss = l_sum
-                    insertidx = j
+                    if l_sum < mingramloss:
+                        mingramloss = l_sum
+                        insertidx = j
 
             self.cachelist[insertidx] = item
 
