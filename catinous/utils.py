@@ -1,8 +1,12 @@
 import pytorch_lightning.logging as pllogging
 from py_jotools import mut
 import argparse
+import pandas as pd
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
+TRAINED_MODELS_FOLDER = '/project/catinous/trained_models/'
+TRAINED_CACHE_FOLDER = '/project/catinous/trained_cache/'
+
 
 def default_params(dparams, params):
     """Copies all key value pairs from params to dparams if not present"""
@@ -16,8 +20,10 @@ def default_params(dparams, params):
                 matched_params[key] = default_params(dparams[key], params[key])
     return matched_params
 
+
 def pllogger(hparams):
     return pllogging.TestTubeLogger(LOGGING_FOLDER, name=get_expname(hparams))
+
 
 def get_expname(hparams):
     if type(hparams) is argparse.Namespace:
@@ -35,5 +41,13 @@ def get_expname(hparams):
     expname += '_'+str(hparams['run_postfix'])
     expname += '_'+hashed_params
     return expname
+
+
+def save_cache_to_csv(cache, savepath):
+    df_cache = pd.DataFrame({'filepath':[ci.filepath for ci in cache], 'label': [ci.label.cpu().numpy()[0] for ci in cache], 'res': [ci.res for ci in cache], 'traincounter': [ci.traincounter for ci in cache]})
+    df_cache.to_csv(savepath, index=False, index_label=False)
+
+
+
 
 

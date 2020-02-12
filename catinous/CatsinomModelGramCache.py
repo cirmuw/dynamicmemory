@@ -15,6 +15,10 @@ from pprint import pprint
 from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 from . import utils
 
+import torch
+from pytorch_lightning import Trainer
+import os
+import pandas as pd
 
 class CatsinomModelGramCache(pl.LightningModule):
 
@@ -26,6 +30,9 @@ class CatsinomModelGramCache(pl.LightningModule):
         self.model = models.resnet50(pretrained=True)
         self.model.fc = nn.Sequential(
             *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
+
+        if not self.hparams.base_model is None:
+            self.model.load_state_dict(torch.load(self.hparams.base_model))
 
         self.loss = nn.BCEWithLogitsLoss()
         self.device = device
@@ -71,6 +78,8 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['continous'] = True
         hparams['noncontinous_steps'] = 3000
         hparams['noncontinous_train_splits'] = ['train','base_train']
+        hparams['val_check_interval'] = 100
+        hparams['base_model'] = None
         hparams['run_postfix'] = '1'
 
         return hparams
@@ -349,3 +358,28 @@ class CatinousCache():
 
     def __iter__(self):
         return self.cachelist.__iter__()
+
+
+def trained_model(hparams):
+    df_cache = None
+    model = CatsinomModelGramCache(hparams=hparams, device=torch.device('cuda'))
+    exp_name = utils.get_expname(model.hparams)
+    if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
+        logger = utils.pllogger(model.hparams)
+        trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=False, checkpoint_callback=False)
+        trainer.fit(model)
+        model.freeze()
+        torch.save(model.state_dict(), utils.TRAINED_MODELS_FOLDER + exp_name +'.pt')
+        if hparams['continous']  and hparams['use_cache']:
+            utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
+    else:
+        model.load_state_dict(torch.load( utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'))
+        model.freeze()
+    if hparams['continous']  and hparams['use_cache']:
+        df_cache = pd.read_csv('/project/catinous/trained_cache/continous_random_cache_run_0.csv')
+
+    # always get the last version
+    max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
+    logs = pd.read_csv(utils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version))
+
+    return model, logs, df_cache
