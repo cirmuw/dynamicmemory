@@ -69,7 +69,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['continous'] = True
         hparams['noncontinous_steps'] = 3000
         hparams['noncontinous_train_splits'] = ['train','base_train']
-        hparams['run_prefix'] = '1'
+        hparams['run_postfix'] = '1'
 
         return hparams
 

@@ -1,5 +1,6 @@
 import pytorch_lightning.logging as pllogging
 from py_jotools import mut
+import argparse
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
 
@@ -16,7 +17,23 @@ def default_params(dparams, params):
     return matched_params
 
 def pllogger(hparams):
-    pllogging.TestTubeLogger(LOGGING_FOLDER, name=expname(hparams))
+    return pllogging.TestTubeLogger(LOGGING_FOLDER, name=get_expname(hparams))
 
-def expname(hparams):
-    mut.hash(hparams, length=10)
+def get_expname(hparams):
+    if type(hparams) is argparse.Namespace:
+        hparams = vars(hparams)
+    hashed_params = mut.hash(hparams, length=10)
+    expname = ''
+    expname += 'cont' if hparams['continous'] else 'batch'
+    expname += '_' + hparams['datasetfile'].split('_')[1]
+    if hparams['continous']:
+        expname += '_fmiss' if hparams['force_misclassified'] else ''
+        expname += '_cache' if hparams['use_cache'] else '_nocache'
+        expname += '_tf{}'.format(str(hparams['transition_phase_after']).replace('.', ''))
+    else:
+        expname += '_' + '-'.join(hparams['noncontinous_train_splits'])
+    expname += '_'+str(hparams['run_postfix'])
+    expname += '_'+hashed_params
+    return expname
+
+
