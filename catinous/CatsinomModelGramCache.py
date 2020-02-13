@@ -32,7 +32,7 @@ class CatsinomModelGramCache(pl.LightningModule):
             *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
 
         if not self.hparams.base_model is None:
-            self.model.load_state_dict(torch.load(self.hparams.base_model))
+            self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model)))
 
         self.loss = nn.BCEWithLogitsLoss()
         self.device = device
