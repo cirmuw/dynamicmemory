@@ -297,13 +297,11 @@ class CatinousCache():
     def insert_element(self, item):
         if not self.cachefull:
             if self.balance_cache:
-                if self.classcounter[item.label] < math.ceil(self.cachemaximum/len(self.classcounter)):
+                if self.classcounter[item.label.item()] < math.ceil(self.cachemaximum/len(self.classcounter)):
                     self.cachelist.append(item)
-                    insertidx = len(self.cachelist) - 1
-                    self.classcounter[item.label] += 1
+                    self.classcounter[item.label.item()] += 1
             else:
                 self.cachelist.append(item)
-                insertidx = len(self.cachelist)-1
             if len(self.cachelist) == self.cachemaximum:
                 self.cachefull = True
         else:
@@ -322,8 +320,6 @@ class CatinousCache():
                         insertidx = j
 
             self.cachelist[insertidx] = item
-
-        return insertidx
 
     #forceditems are in the batch, the others are chosen randomly
     def get_training_batch(self, batchsize, randombatch=False, forceditems=None):
