@@ -170,7 +170,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         y_sig = torch.sigmoid(y_hat)
 
         t = torch.tensor([0.5]).to(torch.device('cuda'))
-        y_sig = (y_sig > t) * 1
+        y_sig = (y_sig > t).long()
         acc = (y[:, None] == y_sig).float().sum() / len(y)
 
         if res[0] == 'lr':  # TODO: this is not completly right...
