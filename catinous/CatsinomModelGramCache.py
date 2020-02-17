@@ -22,7 +22,7 @@ import pandas as pd
 
 class CatsinomModelGramCache(pl.LightningModule):
 
-    def __init__(self, hparams={}, device=None):
+    def __init__(self, hparams={}, device=None, verbous=False):
         super(CatsinomModelGramCache, self).__init__()
         self.hparams = utils.default_params(self.get_default_hparams(), hparams)
         self.hparams = argparse.Namespace(**self.hparams)
@@ -40,16 +40,18 @@ class CatsinomModelGramCache(pl.LightningModule):
         if self.hparams.continous:
             self.init_cache_and_gramhooks()
         else:
-            logging.info('No continous learning, following parameters are invalidated: \n'
-                         'transition_phase_after \n'
-                         'cachemaximum \n'
-                         'use_cache \n'
-                         'random_cache \n'
-                         'force_misclassified \n'
-                         'direction')
+            if verbous:
+                logging.info('No continous learning, following parameters are invalidated: \n'
+                             'transition_phase_after \n'
+                             'cachemaximum \n'
+                             'use_cache \n'
+                             'random_cache \n'
+                             'force_misclassified \n'
+                             'direction')
             self.hparams.use_cache = False
 
-        pprint(vars(self.hparams))
+        if verbous:
+            pprint(vars(self.hparams))
 
     def init_cache_and_gramhooks(self):
         self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum, balance_cache=self.hparams.balance_cache)
@@ -368,16 +370,22 @@ def trained_model(hparams):
         trainer.fit(model)
         model.freeze()
         torch.save(model.state_dict(), weights_path)
-        if hparams['continous']  and hparams['use_cache']:
+        if model.hparams.continous and model.hparams.use_cache:
             utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
     else:
         model.load_state_dict(torch.load(weights_path))
         model.freeze()
-    if hparams['continous']  and hparams['use_cache']:
+    if model.hparams.continous and model.hparams.use_cache:
         df_cache = pd.read_csv(utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
 
     # always get the last version
     max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
     logs = pd.read_csv(utils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version))
 
-    return model, logs, df_cache, weights_path
+    return model, logs, df_cache, exp_name +'.pt'
+
+
+def is_cached(hparams):
+    model = CatsinomModelGramCache(hparams=hparams, device=torch.device('cuda'))
+    exp_name = utils.get_expname(model.hparams)
+    return os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt')
