@@ -32,7 +32,7 @@ class CatsinomModelGramCache(pl.LightningModule):
             *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
 
         if not self.hparams.base_model is None:
-            self.model.load_state_dict(torch.load(self.hparams.base_model))
+            self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model)))
 
         self.loss = nn.BCEWithLogitsLoss()
         self.device = device
@@ -52,7 +52,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         pprint(vars(self.hparams))
 
     def init_cache_and_gramhooks(self):
-        self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum)
+        self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum, balance_cache=self.hparams.balance_cache)
         self.grammatrices = []
         self.gramlayers = [self.model.layer1[-1].conv1,
                            self.model.layer2[-1].conv1,
@@ -286,23 +286,22 @@ class CacheItem():
 
 class CatinousCache():
 
-    def __init__(self, cachemaximum=256):
+    def __init__(self, cachemaximum=256, balance_cache=True):
         self.cachefull = False
         self.cachelist = []  # not sure if list is the best idea...
         self.cachemaximum = cachemaximum
+        self.balance_cache = balance_cache
 
         self.classcounter = {0: 0, 1: 0}
 
     def insert_element(self, item):
         if not self.cachefull:
-            if self.hparams.balance_cache:
-                if self.classcounter[item.label] < math.ceil(self.cachemaximum/len(self.classcounter)):
+            if self.balance_cache:
+                if self.classcounter[item.label.item()] < math.ceil(self.cachemaximum/len(self.classcounter)):
                     self.cachelist.append(item)
-                    insertidx = len(self.cachelist) - 1
-                    self.classcounter[item.label] += 1
+                    self.classcounter[item.label.item()] += 1
             else:
                 self.cachelist.append(item)
-                insertidx = len(self.cachelist)-1
             if len(self.cachelist) == self.cachemaximum:
                 self.cachefull = True
         else:
@@ -310,7 +309,7 @@ class CatinousCache():
             insertidx = -1
             mingramloss = 1000
             for j, ci in enumerate(self.cachelist):
-                if not self.hparams.balance_cache or ci.label==item.label:
+                if not self.balance_cache or ci.label==item.label:
                     l_sum = 0.0
                     for i in range(len(item.current_grammatrix)):
                         l_sum += F.mse_loss(
@@ -321,8 +320,6 @@ class CatinousCache():
                         insertidx = j
 
             self.cachelist[insertidx] = item
-
-        return insertidx
 
     #forceditems are in the batch, the others are chosen randomly
     def get_training_batch(self, batchsize, randombatch=False, forceditems=None):

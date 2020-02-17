@@ -32,6 +32,8 @@ def get_expname(hparams):
     expname = ''
     expname += 'cont' if hparams['continous'] else 'batch'
     expname += '_' + hparams['datasetfile'].split('_')[1]
+    if hparams['base_model']:
+        expname += '_basemodel_' + hparams['base_model'].split('_')[1]
     if hparams['continous']:
         expname += '_fmiss' if hparams['force_misclassified'] else ''
         expname += '_cache' if hparams['use_cache'] else '_nocache'
