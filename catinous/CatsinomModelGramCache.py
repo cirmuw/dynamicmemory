@@ -1,24 +1,22 @@
 import argparse
 import logging
-import random
 import math
+import os
+import random
+from pprint import pprint
 
+import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
-
-from pprint import pprint
 
 from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 from . import utils
 
-import torch
-from pytorch_lightning import Trainer
-import os
-import pandas as pd
 
 class CatsinomModelGramCache(pl.LightningModule):
 
@@ -243,7 +241,7 @@ class CatsinomModelGramCache(pl.LightningModule):
             return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir,
                                                                self.hparams.datasetfile,
                                                                transition_phase_after=self.hparams.transition_phase_after),
-                              batch_size=self.hparams.batch_size, num_workers=2)
+                              batch_size=self.hparams.batch_size, num_workers=2, drop_last=True)
         else:
             return DataLoader(CatsinomDataset(self.hparams.root_dir,
                                               self.hparams.datasetfile,
@@ -359,14 +357,14 @@ class CatinousCache():
         return self.cachelist.__iter__()
 
 
-def trained_model(hparams):
+def trained_model(hparams, show_progress = False):
     df_cache = None
     model = CatsinomModelGramCache(hparams=hparams, device=torch.device('cuda'))
     exp_name = utils.get_expname(model.hparams)
     weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = utils.pllogger(model.hparams)
-        trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=False, checkpoint_callback=False)
+        trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=show_progress, checkpoint_callback=False)
         trainer.fit(model)
         model.freeze()
         torch.save(model.state_dict(), weights_path)
@@ -376,6 +374,7 @@ def trained_model(hparams):
         print('Read: ' + weights_path)
         model.load_state_dict(torch.load(weights_path))
         model.freeze()
+
     if model.hparams.continous and model.hparams.use_cache:
         df_cache = pd.read_csv(utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
 
