@@ -373,6 +373,7 @@ def trained_model(hparams):
         if model.hparams.continous and model.hparams.use_cache:
             utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
     else:
+        print('Read: ' + weights_path)
         model.load_state_dict(torch.load(weights_path))
         model.freeze()
     if model.hparams.continous and model.hparams.use_cache:
