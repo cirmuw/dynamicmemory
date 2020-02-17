@@ -364,16 +364,17 @@ def trained_model(hparams):
     df_cache = None
     model = CatsinomModelGramCache(hparams=hparams, device=torch.device('cuda'))
     exp_name = utils.get_expname(model.hparams)
+    weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = utils.pllogger(model.hparams)
         trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=False, checkpoint_callback=False)
         trainer.fit(model)
         model.freeze()
-        torch.save(model.state_dict(), utils.TRAINED_MODELS_FOLDER + exp_name +'.pt')
+        torch.save(model.state_dict(), weights_path)
         if hparams['continous']  and hparams['use_cache']:
             utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
     else:
-        model.load_state_dict(torch.load( utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'))
+        model.load_state_dict(torch.load(weights_path))
         model.freeze()
     if hparams['continous']  and hparams['use_cache']:
         df_cache = pd.read_csv(utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
@@ -382,4 +383,4 @@ def trained_model(hparams):
     max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
     logs = pd.read_csv(utils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version))
 
-    return model, logs, df_cache
+    return model, logs, df_cache, weights_path
