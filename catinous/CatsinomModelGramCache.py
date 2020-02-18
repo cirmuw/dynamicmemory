@@ -277,7 +277,7 @@ class CacheItem():
 
         y_sig = torch.sigmoid(current_prediction)
         t = torch.tensor([0.5]).to(torch.device('cuda'))
-        self.misclassification = (self.label != ((y_sig > t) * 1))
+        self.misclassification = (self.label != ((y_sig > t).long()))
 
     #needed for sorting the list according to current loss
     def __lt__(self, other):
