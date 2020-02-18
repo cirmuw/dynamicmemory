@@ -34,6 +34,8 @@ class CatsinomModelGramCache(pl.LightningModule):
 
         self.loss = nn.BCEWithLogitsLoss()
         self.device = device
+        self.t = torch.tensor([0.5]).to(torch.device('cuda'))
+
 
         if self.hparams.continous:
             self.init_cache_and_gramhooks()
@@ -124,7 +126,7 @@ class CatsinomModelGramCache(pl.LightningModule):
             for ci in self.trainingscache:
                 if ci is not None:
                     self.grammatrices = []
-                    y_img = self.forward(ci.img.float())
+                    y_img = self.forward(ci.img.float().to(self.device))
                     # ci.update_prediction(y_img[0])
                     grammatrix = [gm[0].cpu() for gm in self.grammatrices]
                     ci.current_grammatrix = grammatrix
@@ -169,8 +171,7 @@ class CatsinomModelGramCache(pl.LightningModule):
 
         y_sig = torch.sigmoid(y_hat)
 
-        t = torch.tensor([0.5]).to(torch.device('cuda'))
-        y_sig = (y_sig > t).long()
+        y_sig = (y_sig > self.t).long()
         acc = (y[:, None] == y_sig).float().sum() / len(y)
 
         if res[0] == 'lr':  # TODO: this is not completly right...
@@ -220,8 +221,8 @@ class CatsinomModelGramCache(pl.LightningModule):
         x, y = batch
         y_hat = self.forward(x.float())
         y_sig = torch.sigmoid(y_hat)
-        t = torch.tensor([0.5]).to(torch.device('cuda'))
-        y_sig = (y_sig > t) * 1
+        # t = torch.tensor([0.5]).to(torch.device('cuda'))
+        y_sig = (y_sig > self.t) * 1
         acc = (y[:, None] == y_sig).float().sum() / len(y)
 
         return {'test_loss': self.loss(y_hat, y[:, None].float()), 'test_acc': acc}
@@ -262,8 +263,8 @@ class CatsinomModelGramCache(pl.LightningModule):
 class CacheItem():
 
     def __init__(self, img, label, filepath, res, current_prediction, current_grammatrix=None):
-        self.img = img
-        self.label = label
+        self.img = img.detach().cpu()
+        self.label = label.detach().cpu()
         self.filepath = filepath
         self.res = res
         self.traincounter = 0
@@ -271,13 +272,13 @@ class CacheItem():
         self.current_grammatrix = current_grammatrix
 
     def update_prediction(self, current_prediction):
-        self.current_prediction = current_prediction
+        self.current_prediction = current_prediction.detach().cpu()
         self.current_loss = F.binary_cross_entropy_with_logits(
             self.current_prediction, self.label.float())
 
-        y_sig = torch.sigmoid(current_prediction)
-        t = torch.tensor([0.5]).to(torch.device('cuda'))
-        self.misclassification = (self.label != ((y_sig > t).long()))
+        y_sig = torch.sigmoid(self.current_prediction)
+        # t = torch.tensor([0.5])
+        self.misclassification = (self.label != ((y_sig > 0.5).long()))
 
     #needed for sorting the list according to current loss
     def __lt__(self, other):
@@ -318,7 +319,6 @@ class CatinousCache():
                     if l_sum < mingramloss:
                         mingramloss = l_sum
                         insertidx = j
-
             self.cachelist[insertidx] = item
 
     #forceditems are in the batch, the others are chosen randomly
