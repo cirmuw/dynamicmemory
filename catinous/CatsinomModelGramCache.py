@@ -12,9 +12,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 from pytorch_lightning import Trainer
-from torch.utils.data import DataLoader
 
+from torch.utils.data import DataLoader
 from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
+
 from . import utils
 
 
@@ -24,20 +25,34 @@ class CatsinomModelGramCache(pl.LightningModule):
         super(CatsinomModelGramCache, self).__init__()
         self.hparams = utils.default_params(self.get_default_hparams(), hparams)
         self.hparams = argparse.Namespace(**self.hparams)
-
         self.model = models.resnet50(pretrained=True)
         self.model.fc = nn.Sequential(
             *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
 
+        self.loss = nn.BCEWithLogitsLoss()
+
         if not self.hparams.base_model is None:
             self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model)))
 
-        self.loss = nn.BCEWithLogitsLoss()
+            if self.hparams.EWC:
+                logging.info('EWC preparation...')
+                dl = DataLoader(CatsinomDataset(self.hparams.root_dir,
+                                                self.hparams.EWC_dataset,
+                                                iterations=100,
+                                                batch_size=8,
+                                                split=['base_train']),
+                                batch_size=8, num_workers=2)
+                self.cuda()
+                self.ewc = utils.EWC(self.model, dl)
+                self.ewcloss = utils.BCEWithLogitWithEWCLoss(torch.Tensor([self.hparams.EWC_lambda]))
+                # self.loss = lambda x,y,m: bc(x, y) + self.hparams.EWC_lambda * self.ewc.penalty(m)
+                logging.info('EWC preparation, done!')
+
         self.device = device
         self.t = torch.tensor([0.5]).to(torch.device('cuda'))
 
 
-        if self.hparams.continous:
+        if self.hparams.use_cache and self.hparams.continous:
             self.init_cache_and_gramhooks()
         else:
             if verbous:
@@ -52,6 +67,7 @@ class CatsinomModelGramCache(pl.LightningModule):
 
         if verbous:
             pprint(vars(self.hparams))
+
 
     def init_cache_and_gramhooks(self):
         self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum, balance_cache=self.hparams.balance_cache)
@@ -80,6 +96,9 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['continous'] = True
         hparams['noncontinous_steps'] = 3000
         hparams['noncontinous_train_splits'] = ['train','base_train']
+        hparams['EWC'] = False
+        hparams['EWC_dataset'] = None
+        hparams['EWC_lambda'] = 1000
         hparams['val_check_interval'] = 100
         hparams['base_model'] = None
         hparams['run_postfix'] = '1'
@@ -153,13 +172,26 @@ class CatsinomModelGramCache(pl.LightningModule):
             y = y.to(self.device)
 
             y_hat = self.forward(x.float())
+
             loss = self.loss(y_hat, y.float())
 
             tensorboard_logs = {'train_loss': loss}
             return {'loss': loss, 'log': tensorboard_logs}
         else:
+
+            # this turns batchnorm off
+            # for m in self.model.modules():
+            #     if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+            #         m.eval()
+
+
             y_hat = self.forward(x.float())
-            loss = self.loss(y_hat, y[:, None].float())
+            if self.hparams.EWC:
+                loss = self.ewcloss(y_hat, y[:, None].float(),self.ewc.penalty(self.model))
+                # from IPython.core.debugger import set_trace
+                # set_trace()
+            else:
+                loss = self.loss(y_hat, y[:, None].float())
             tensorboard_logs = {'train_loss': loss}
             return {'loss': loss, 'log': tensorboard_logs}
 
@@ -177,6 +209,8 @@ class CatsinomModelGramCache(pl.LightningModule):
         if res[0] == 'lr':  # TODO: this is not completly right...
             return {'val_loss_lr': self.loss(y_hat, y[:, None].float()), 'val_acc_lr': acc}
         else:
+            # from IPython.core.debugger import set_trace
+            # set_trace()
             return {'val_loss_hr': self.loss(y_hat, y[:, None].float()), 'val_acc_hr': acc}
 
     def validation_end(self, outputs):
@@ -234,7 +268,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         return {'test_loss': avg_loss, 'test_acc': avg_acc, 'log': tensorboard_logs}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.0001)
+        return torch.optim.Adam(self.parameters(), lr=0.00005)
 
     @pl.data_loader
     def train_dataloader(self):
