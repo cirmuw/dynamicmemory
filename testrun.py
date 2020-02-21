@@ -42,21 +42,22 @@ hparams={'continous':False,
          'noncontinous_steps': 3000}
 _, logs, df_cache, basemodel_lr = catsmodel.trained_model(hparams)
 
+hparams={'continous': True,
+         'use_cache': False,
+         'datasetfile': 'catsinom_combined_hrlowshift_dataset.csv',
+         'base_model': basemodel_lr,
+         'EWC': True,
+         'EWC_dataset': 'catsinom_lr_dataset.csv',
+         'EWC_lambda': 10000,
+         'EWC_bn_off': True,
+         'val_check_interval': 100}
+
 # hparams={'continous': True,
-#          'use_cache': False,
+#          'force_misclassified': True,
 #          'datasetfile': 'catsinom_combined_hrlowshift_dataset.csv',
 #          'base_model': basemodel_lr,
-#          'EWC': False,
-#          'EWC_dataset': 'catsinom_lr_dataset.csv',
-#          'EWC_lambda': 10000000000000,
-#          'val_check_interval': 99}
-
-hparams={'continous': True,
-         'force_misclassified': True,
-         'datasetfile': 'catsinom_combined_dataset.csv',
-         'base_model': basemodel_lr,
-         'val_check_interval': 99,
-         'cachemaximum': 64}
+#          'val_check_interval': 99,
+#          'cachemaximum': 64}
 
 model, logs, df_cache, basemodel_lr = catsmodel.trained_model(hparams, show_progress=True)
 

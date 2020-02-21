@@ -99,6 +99,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['EWC'] = False
         hparams['EWC_dataset'] = None
         hparams['EWC_lambda'] = 1000
+        hparams['EWC_bn_off'] = False
         hparams['val_check_interval'] = 100
         hparams['base_model'] = None
         hparams['run_postfix'] = '1'
@@ -185,12 +186,21 @@ class CatsinomModelGramCache(pl.LightningModule):
             #         m.eval()
 
 
-            y_hat = self.forward(x.float())
+
             if self.hparams.EWC:
+
+                # this turns batchnorm off
+                if self.hparams.EWC_bn_off:
+                    for m in self.model.modules():
+                        if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+                            m.eval()
+                y_hat = self.forward(x.float())
+
                 loss = self.ewcloss(y_hat, y[:, None].float(),self.ewc.penalty(self.model))
                 # from IPython.core.debugger import set_trace
                 # set_trace()
             else:
+                y_hat = self.forward(x.float())
                 loss = self.loss(y_hat, y[:, None].float())
             tensorboard_logs = {'train_loss': loss}
             return {'loss': loss, 'log': tensorboard_logs}

@@ -43,6 +43,7 @@ def get_expname(hparams):
         hparams.pop('EWC')
         hparams.pop('EWC_dataset')
         hparams.pop('EWC_lambda')
+        hparams.pop('EWC_bn_off')
 
     hashed_params = mut.hash(hparams, length=10)
     expname = ''
@@ -117,11 +118,11 @@ class BCEWithLogitWithEWCLoss(torch.nn.BCEWithLogitsLoss):
         self.register_buffer('lambda_p',lambda_p)
 
     def forward(self, input, target, penalty):
-        # F.binary_cross_entropy_with_logits(input, target,
-        #                                    self.weight,
-        #                                    pos_weight=self.pos_weight,
-        #                                    reduction=self.reduction)
-        return self.lambda_p * penalty
+        bce = F.binary_cross_entropy_with_logits(input, target,
+                                           self.weight,
+                                           pos_weight=self.pos_weight,
+                                           reduction=self.reduction)
+        return bce + self.lambda_p * penalty
 
 
 def variable(t: torch.Tensor, use_cuda=True, **kwargs):
