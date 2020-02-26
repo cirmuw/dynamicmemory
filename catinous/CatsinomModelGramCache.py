@@ -1,55 +1,64 @@
 import argparse
 import logging
-import random
 import math
+import os
+import random
+from pprint import pprint
 
+import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+from pytorch_lightning import Trainer
+
 from torch.utils.data import DataLoader
-
-from pprint import pprint
-
 from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
+
 from . import utils
 
-import torch
-from pytorch_lightning import Trainer
-import os
-import pandas as pd
 
 class CatsinomModelGramCache(pl.LightningModule):
 
-    def __init__(self, hparams={}, device=None):
+    def __init__(self, hparams={}, device=None, verbous=False):
         super(CatsinomModelGramCache, self).__init__()
         self.hparams = utils.default_params(self.get_default_hparams(), hparams)
         self.hparams = argparse.Namespace(**self.hparams)
-
         self.model = models.resnet50(pretrained=True)
         self.model.fc = nn.Sequential(
             *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
 
+        self.loss = nn.BCEWithLogitsLoss()
+        self.prepareewc = False
+
         if not self.hparams.base_model is None:
             self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model)))
 
-        self.loss = nn.BCEWithLogitsLoss()
-        self.device = device
+            if self.hparams.EWC:
+                self.prepareewc = True
+                self.ewcloss = utils.BCEWithLogitWithEWCLoss(torch.Tensor([self.hparams.EWC_lambda]))
 
-        if self.hparams.continous:
+        self.device = device
+        self.t = torch.tensor([0.5]).to(torch.device('cuda'))
+
+
+        if self.hparams.use_cache and self.hparams.continous:
             self.init_cache_and_gramhooks()
         else:
-            logging.info('No continous learning, following parameters are invalidated: \n'
-                         'transition_phase_after \n'
-                         'cachemaximum \n'
-                         'use_cache \n'
-                         'random_cache \n'
-                         'force_misclassified \n'
-                         'direction')
+            if verbous:
+                logging.info('No continous learning, following parameters are invalidated: \n'
+                             'transition_phase_after \n'
+                             'cachemaximum \n'
+                             'use_cache \n'
+                             'random_cache \n'
+                             'force_misclassified \n'
+                             'direction')
             self.hparams.use_cache = False
 
-        pprint(vars(self.hparams))
+        if verbous:
+            pprint(vars(self.hparams))
+
 
     def init_cache_and_gramhooks(self):
         self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum, balance_cache=self.hparams.balance_cache)
@@ -78,6 +87,10 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['continous'] = True
         hparams['noncontinous_steps'] = 3000
         hparams['noncontinous_train_splits'] = ['train','base_train']
+        hparams['EWC'] = False
+        hparams['EWC_dataset'] = None
+        hparams['EWC_lambda'] = 1000
+        hparams['EWC_bn_off'] = False
         hparams['val_check_interval'] = 100
         hparams['base_model'] = None
         hparams['run_postfix'] = '1'
@@ -124,7 +137,7 @@ class CatsinomModelGramCache(pl.LightningModule):
             for ci in self.trainingscache:
                 if ci is not None:
                     self.grammatrices = []
-                    y_img = self.forward(ci.img.float())
+                    y_img = self.forward(ci.img.float().to(self.device))
                     # ci.update_prediction(y_img[0])
                     grammatrix = [gm[0].cpu() for gm in self.grammatrices]
                     ci.current_grammatrix = grammatrix
@@ -151,13 +164,49 @@ class CatsinomModelGramCache(pl.LightningModule):
             y = y.to(self.device)
 
             y_hat = self.forward(x.float())
+
             loss = self.loss(y_hat, y.float())
 
             tensorboard_logs = {'train_loss': loss}
             return {'loss': loss, 'log': tensorboard_logs}
         else:
-            y_hat = self.forward(x.float())
-            loss = self.loss(y_hat, y[:, None].float())
+
+            # this turns batchnorm off
+            # for m in self.model.modules():
+            #     if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+            #         m.eval()
+
+
+
+            if self.hparams.EWC:
+
+                if self.prepareewc: # first tim ewc update.
+                    logging.info('EWC preparation...')
+                    dl = DataLoader(CatsinomDataset(self.hparams.root_dir,
+                                                    self.hparams.EWC_dataset,
+                                                    iterations=100,
+                                                    batch_size=8,
+                                                    split=['base_train']),
+                                    batch_size=8, num_workers=2)
+                    self.cuda()
+                    self.ewc = utils.EWC(self.model, dl)
+                    # self.loss = lambda x,y,m: bc(x, y) + self.hparams.EWC_lambda * self.ewc.penalty(m)
+                    logging.info('EWC preparation, done!')
+                    self.prepareewc = False
+
+                # this turns batchnorm off
+                if self.hparams.EWC_bn_off:
+                    for m in self.model.modules():
+                        if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+                            m.eval()
+                y_hat = self.forward(x.float())
+
+                loss = self.ewcloss(y_hat, y[:, None].float(),self.ewc.penalty(self.model))
+                # from IPython.core.debugger import set_trace
+                # set_trace()
+            else:
+                y_hat = self.forward(x.float())
+                loss = self.loss(y_hat, y[:, None].float())
             tensorboard_logs = {'train_loss': loss}
             return {'loss': loss, 'log': tensorboard_logs}
 
@@ -169,13 +218,14 @@ class CatsinomModelGramCache(pl.LightningModule):
 
         y_sig = torch.sigmoid(y_hat)
 
-        t = torch.tensor([0.5]).to(torch.device('cuda'))
-        y_sig = (y_sig > t) * 1
+        y_sig = (y_sig > self.t).long()
         acc = (y[:, None] == y_sig).float().sum() / len(y)
 
         if res[0] == 'lr':  # TODO: this is not completly right...
             return {'val_loss_lr': self.loss(y_hat, y[:, None].float()), 'val_acc_lr': acc}
         else:
+            # from IPython.core.debugger import set_trace
+            # set_trace()
             return {'val_loss_hr': self.loss(y_hat, y[:, None].float()), 'val_acc_hr': acc}
 
     def validation_end(self, outputs):
@@ -220,8 +270,8 @@ class CatsinomModelGramCache(pl.LightningModule):
         x, y = batch
         y_hat = self.forward(x.float())
         y_sig = torch.sigmoid(y_hat)
-        t = torch.tensor([0.5]).to(torch.device('cuda'))
-        y_sig = (y_sig > t) * 1
+        # t = torch.tensor([0.5]).to(torch.device('cuda'))
+        y_sig = (y_sig > self.t) * 1
         acc = (y[:, None] == y_sig).float().sum() / len(y)
 
         return {'test_loss': self.loss(y_hat, y[:, None].float()), 'test_acc': acc}
@@ -233,7 +283,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         return {'test_loss': avg_loss, 'test_acc': avg_acc, 'log': tensorboard_logs}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.0001)
+        return torch.optim.Adam(self.parameters(), lr=0.00005)
 
     @pl.data_loader
     def train_dataloader(self):
@@ -241,7 +291,7 @@ class CatsinomModelGramCache(pl.LightningModule):
             return DataLoader(Catsinom_Dataset_CatineousStream(self.hparams.root_dir,
                                                                self.hparams.datasetfile,
                                                                transition_phase_after=self.hparams.transition_phase_after),
-                              batch_size=self.hparams.batch_size, num_workers=2)
+                              batch_size=self.hparams.batch_size, num_workers=2, drop_last=True)
         else:
             return DataLoader(CatsinomDataset(self.hparams.root_dir,
                                               self.hparams.datasetfile,
@@ -262,8 +312,8 @@ class CatsinomModelGramCache(pl.LightningModule):
 class CacheItem():
 
     def __init__(self, img, label, filepath, res, current_prediction, current_grammatrix=None):
-        self.img = img
-        self.label = label
+        self.img = img.detach().cpu()
+        self.label = label.detach().cpu()
         self.filepath = filepath
         self.res = res
         self.traincounter = 0
@@ -271,13 +321,13 @@ class CacheItem():
         self.current_grammatrix = current_grammatrix
 
     def update_prediction(self, current_prediction):
-        self.current_prediction = current_prediction
+        self.current_prediction = current_prediction.detach().cpu()
         self.current_loss = F.binary_cross_entropy_with_logits(
             self.current_prediction, self.label.float())
 
-        y_sig = torch.sigmoid(current_prediction)
-        t = torch.tensor([0.5]).to(torch.device('cuda'))
-        self.misclassification = (self.label != ((y_sig > t) * 1))
+        y_sig = torch.sigmoid(self.current_prediction)
+        # t = torch.tensor([0.5])
+        self.misclassification = (self.label != ((y_sig > 0.5).long()))
 
     #needed for sorting the list according to current loss
     def __lt__(self, other):
@@ -318,7 +368,6 @@ class CatinousCache():
                     if l_sum < mingramloss:
                         mingramloss = l_sum
                         insertidx = j
-
             self.cachelist[insertidx] = item
 
     #forceditems are in the batch, the others are chosen randomly
@@ -357,26 +406,36 @@ class CatinousCache():
         return self.cachelist.__iter__()
 
 
-def trained_model(hparams):
+def trained_model(hparams, show_progress = False):
     df_cache = None
-    model = CatsinomModelGramCache(hparams=hparams, device=torch.device('cuda'))
+    model = CatsinomModelGramCache(hparams=hparams)
     exp_name = utils.get_expname(model.hparams)
+    weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = utils.pllogger(model.hparams)
-        trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=False, checkpoint_callback=False)
+        model.to(torch.device('cuda'))
+        trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=show_progress, checkpoint_callback=False)
         trainer.fit(model)
         model.freeze()
-        torch.save(model.state_dict(), utils.TRAINED_MODELS_FOLDER + exp_name +'.pt')
-        if hparams['continous']  and hparams['use_cache']:
+        torch.save(model.state_dict(), weights_path)
+        if model.hparams.continous and model.hparams.use_cache:
             utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
     else:
-        model.load_state_dict(torch.load( utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'))
+        print('Read: ' + weights_path)
+        model.load_state_dict(torch.load(weights_path))
         model.freeze()
-    if hparams['continous']  and hparams['use_cache']:
+
+    if model.hparams.continous and model.hparams.use_cache:
         df_cache = pd.read_csv(utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
 
     # always get the last version
     max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
     logs = pd.read_csv(utils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version))
 
-    return model, logs, df_cache
+    return model, logs, df_cache, exp_name +'.pt'
+
+
+def is_cached(hparams):
+    model = CatsinomModelGramCache(hparams=hparams)
+    exp_name = utils.get_expname(model.hparams)
+    return os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt')
