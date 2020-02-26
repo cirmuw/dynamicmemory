@@ -48,7 +48,7 @@ hparams={'continous': True,
          'base_model': basemodel_lr,
          'EWC': True,
          'EWC_dataset': 'catsinom_lr_dataset.csv',
-         'EWC_lambda': 10000,
+         'EWC_lambda': 1,
          'EWC_bn_off': True,
          'val_check_interval': 100}
 

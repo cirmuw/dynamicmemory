@@ -30,23 +30,14 @@ class CatsinomModelGramCache(pl.LightningModule):
             *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
 
         self.loss = nn.BCEWithLogitsLoss()
+        self.prepareewc = False
 
         if not self.hparams.base_model is None:
             self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model)))
 
             if self.hparams.EWC:
-                logging.info('EWC preparation...')
-                dl = DataLoader(CatsinomDataset(self.hparams.root_dir,
-                                                self.hparams.EWC_dataset,
-                                                iterations=100,
-                                                batch_size=8,
-                                                split=['base_train']),
-                                batch_size=8, num_workers=2)
-                self.cuda()
-                self.ewc = utils.EWC(self.model, dl)
+                self.prepareewc = True
                 self.ewcloss = utils.BCEWithLogitWithEWCLoss(torch.Tensor([self.hparams.EWC_lambda]))
-                # self.loss = lambda x,y,m: bc(x, y) + self.hparams.EWC_lambda * self.ewc.penalty(m)
-                logging.info('EWC preparation, done!')
 
         self.device = device
         self.t = torch.tensor([0.5]).to(torch.device('cuda'))
@@ -188,6 +179,20 @@ class CatsinomModelGramCache(pl.LightningModule):
 
 
             if self.hparams.EWC:
+
+                if self.prepareewc: # first tim ewc update.
+                    logging.info('EWC preparation...')
+                    dl = DataLoader(CatsinomDataset(self.hparams.root_dir,
+                                                    self.hparams.EWC_dataset,
+                                                    iterations=100,
+                                                    batch_size=8,
+                                                    split=['base_train']),
+                                    batch_size=8, num_workers=2)
+                    self.cuda()
+                    self.ewc = utils.EWC(self.model, dl)
+                    # self.loss = lambda x,y,m: bc(x, y) + self.hparams.EWC_lambda * self.ewc.penalty(m)
+                    logging.info('EWC preparation, done!')
+                    self.prepareewc = False
 
                 # this turns batchnorm off
                 if self.hparams.EWC_bn_off:
