@@ -408,11 +408,12 @@ class CatinousCache():
 
 def trained_model(hparams, show_progress = False):
     df_cache = None
-    model = CatsinomModelGramCache(hparams=hparams, device=torch.device('cuda'))
+    model = CatsinomModelGramCache(hparams=hparams)
     exp_name = utils.get_expname(model.hparams)
     weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = utils.pllogger(model.hparams)
+        model.to(torch.device('cuda'))
         trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=show_progress, checkpoint_callback=False)
         trainer.fit(model)
         model.freeze()
@@ -435,6 +436,6 @@ def trained_model(hparams, show_progress = False):
 
 
 def is_cached(hparams):
-    model = CatsinomModelGramCache(hparams=hparams, device=torch.device('cuda'))
+    model = CatsinomModelGramCache(hparams=hparams)
     exp_name = utils.get_expname(model.hparams)
     return os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt')
