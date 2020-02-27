@@ -12,10 +12,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 from pytorch_lightning import Trainer
-
 from torch.utils.data import DataLoader
-from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 
+from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 from . import utils
 
 
@@ -408,12 +407,15 @@ class CatinousCache():
 
 def trained_model(hparams, show_progress = False):
     df_cache = None
-    model = CatsinomModelGramCache(hparams=hparams)
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    model = CatsinomModelGramCache(hparams=hparams, device=device)
     exp_name = utils.get_expname(model.hparams)
     weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = utils.pllogger(model.hparams)
-        model.to(torch.device('cuda'))
         trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=show_progress, checkpoint_callback=False)
         trainer.fit(model)
         model.freeze()
