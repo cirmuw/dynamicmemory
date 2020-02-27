@@ -15,6 +15,7 @@ from torch.autograd import Variable
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
 TRAINED_MODELS_FOLDER = '/project/catinous/trained_models/'
 TRAINED_CACHE_FOLDER = '/project/catinous/trained_cache/'
+RESPATH = '/project/catinous/results/'
 
 
 def default_params(dparams, params):
