@@ -21,7 +21,7 @@ from . import utils
 
 class CatsinomModelGramCache(pl.LightningModule):
 
-    def __init__(self, hparams={}, device=None, verbous=False):
+    def __init__(self, hparams={}, device=torch.device('cpu'), verbous=False):
         super(CatsinomModelGramCache, self).__init__()
         self.hparams = utils.default_params(self.get_default_hparams(), hparams)
         self.hparams = argparse.Namespace(**self.hparams)
@@ -33,14 +33,14 @@ class CatsinomModelGramCache(pl.LightningModule):
         self.prepareewc = False
 
         if not self.hparams.base_model is None:
-            self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model)))
+            self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model), map_location=device))
 
             if self.hparams.EWC:
                 self.prepareewc = True
                 self.ewcloss = utils.BCEWithLogitWithEWCLoss(torch.Tensor([self.hparams.EWC_lambda]))
 
         self.device = device
-        self.t = torch.tensor([0.5]).to(torch.device('cuda'))
+        self.t = torch.tensor([0.5]).to(device)
 
 
         if self.hparams.use_cache and self.hparams.continous:
@@ -422,7 +422,7 @@ def trained_model(hparams, show_progress = False):
             utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
     else:
         print('Read: ' + weights_path)
-        model.load_state_dict(torch.load(weights_path))
+        model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
         model.freeze()
 
     if model.hparams.continous and model.hparams.use_cache:
