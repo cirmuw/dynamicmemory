@@ -12,16 +12,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 from pytorch_lightning import Trainer
-
 from torch.utils.data import DataLoader
-from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 
+from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 from . import utils
 
 
 class CatsinomModelGramCache(pl.LightningModule):
 
-    def __init__(self, hparams={}, device=None, verbous=False):
+    def __init__(self, hparams={}, device=torch.device('cpu'), verbous=False):
         super(CatsinomModelGramCache, self).__init__()
         self.hparams = utils.default_params(self.get_default_hparams(), hparams)
         self.hparams = argparse.Namespace(**self.hparams)
@@ -33,15 +32,15 @@ class CatsinomModelGramCache(pl.LightningModule):
         self.prepareewc = False
 
         if not self.hparams.base_model is None:
-            self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model)))
+            self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model), map_location=device))
 
             if self.hparams.EWC:
                 self.prepareewc = True
                 self.ewcloss = utils.BCEWithLogitWithEWCLoss(torch.Tensor([self.hparams.EWC_lambda]))
 
-        #self.device = device
-        self.device = torch.device('cuda')
-        self.t = torch.tensor([0.5]).to(torch.device('cuda'))
+
+        self.device = device
+        self.t = torch.tensor([0.5]).to(device)
 
 
         if self.hparams.use_cache and self.hparams.continous:
@@ -429,12 +428,15 @@ class CatinousCache():
 
 def trained_model(hparams, show_progress = False):
     df_cache = None
-    model = CatsinomModelGramCache(hparams=hparams)
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    model = CatsinomModelGramCache(hparams=hparams, device=device)
     exp_name = utils.get_expname(model.hparams)
     weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = utils.pllogger(model.hparams)
-        model.to(torch.device('cuda'))
         trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=show_progress, checkpoint_callback=False)
         trainer.fit(model)
         model.freeze()
@@ -443,7 +445,7 @@ def trained_model(hparams, show_progress = False):
             utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
     else:
         print('Read: ' + weights_path)
-        model.load_state_dict(torch.load(weights_path))
+        model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
         model.freeze()
 
     if model.hparams.continous and model.hparams.use_cache:
