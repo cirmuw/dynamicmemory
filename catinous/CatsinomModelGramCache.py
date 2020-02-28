@@ -39,7 +39,8 @@ class CatsinomModelGramCache(pl.LightningModule):
                 self.prepareewc = True
                 self.ewcloss = utils.BCEWithLogitWithEWCLoss(torch.Tensor([self.hparams.EWC_lambda]))
 
-        self.device = device
+        #self.device = device
+        self.device = torch.device('cuda')
         self.t = torch.tensor([0.5]).to(torch.device('cuda'))
 
 
@@ -223,27 +224,37 @@ class CatsinomModelGramCache(pl.LightningModule):
 
         if res[0] == 'lr':  # TODO: this is not completly right...
             return {'val_loss_lr': self.loss(y_hat, y[:, None].float()), 'val_acc_lr': acc}
-        else:
+        elif res[0] == 'hr':
             # from IPython.core.debugger import set_trace
             # set_trace()
             return {'val_loss_hr': self.loss(y_hat, y[:, None].float()), 'val_acc_hr': acc}
+        else:
+            return {'val_loss_hr_ts': self.loss(y_hat, y[:, None].float()), 'val_acc_hr_ts': acc}
 
     def validation_end(self, outputs):
         val_loss_lr_mean = 0
         val_acc_lr_mean = 0
         val_loss_hr_mean = 0
         val_acc_hr_mean = 0
+        val_loss_hr_ts_mean = 0
+        val_acc_hr_ts_mean = 0
         lr_count = 0
         hr_count = 0
+        hr_ts_count = 0
+
         for output in outputs:
             if 'val_loss_lr' in output:
                 val_loss_lr_mean += output['val_loss_lr']
                 val_acc_lr_mean += output['val_acc_lr']
                 lr_count += 1
-            else:
+            elif 'val_loss_hr' in output:
                 val_loss_hr_mean += output['val_loss_hr']
                 val_acc_hr_mean += output['val_acc_hr']
                 hr_count += 1
+            else:
+                val_loss_hr_ts_mean += output['val_loss_hr_ts']
+                val_acc_hr_ts_mean += output['val_acc_hr_ts']
+                hr_ts_count += 1
 
         if lr_count > 0:
             val_loss_lr_mean /= lr_count
@@ -256,14 +267,24 @@ class CatsinomModelGramCache(pl.LightningModule):
             val_acc_hr_mean /= hr_count
             val_acc_hr_mean = val_acc_hr_mean.item()
 
+        if hr_ts_count > 0:
+            val_loss_hr_ts_mean /= hr_ts_count
+            val_loss_hr_ts_mean = val_loss_hr_ts_mean.item()
+            val_acc_hr_ts_mean /= hr_ts_count
+            val_acc_hr_ts_mean = val_acc_hr_ts_mean.item()
+
         tensorboard_logs = {'val_loss_lr': val_loss_lr_mean,
                             'val_acc_lr': val_acc_lr_mean,
                             'val_loss_hr': val_loss_hr_mean,
-                            'val_acc_hr': val_acc_hr_mean}
+                            'val_acc_hr': val_acc_hr_mean,
+                            'val_loss_hr_ts': val_loss_hr_ts_mean,
+                            'val_acc_hr_ts': val_acc_hr_ts_mean}
         return {'avg_val_loss_lr': val_loss_lr_mean,
                 'avg_val_acc_lr': val_acc_lr_mean,
                 'avg_val_loss_hr': val_loss_hr_mean,
                 'avg_val_acc_hr': val_acc_hr_mean,
+                'avg_val_loss_hr_ts': val_loss_hr_ts_mean,
+                'avg_val_acc_hr_ts': val_acc_hr_ts_mean,
                 'log': tensorboard_logs}
 
     def test_step(self, batch, batch_idx):
