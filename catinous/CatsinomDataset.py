@@ -8,15 +8,20 @@ import numpy as np
 
 class CatsinomDataset(Dataset):
 
-    def __init__(self, root_dir, datasetfile, split=['train'], iterations=None, batch_size=None):
+    def __init__(self, root_dir, datasetfile, split=['train'], iterations=None, batch_size=None, res=None):
 
         df = pd.read_csv(datasetfile, index_col=0)
         if type(split) is list:
             selection = np.any([df.split==x for x in split], axis=0)
         else:
             selection = df.split==split
+
         self.df = df.loc[selection]
         self.df = self.df.reset_index()
+
+        if res is not None:
+            self.df = self.df.loc[self.df.res==res]
+            #self.df = self.df.reset_index()
 
         if iterations is not None:
             self.df = self.df.sample(iterations*batch_size, replace=True)
