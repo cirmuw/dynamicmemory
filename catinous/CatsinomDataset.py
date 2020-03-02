@@ -45,15 +45,14 @@ class Catsinom_Dataset_CatineousStream(Dataset):
         df = pd.read_csv(datasetfile, index_col=0)
         assert(set(['train']).issubset(df.split.unique()))
         assert(direction in ['lr->hr', 'hr->lr', 'lrcomplete->hr'])
+
         lr = df.loc[df.res=='lr']
         hr = df.loc[df.res=='hr']
-
         hr_ts = df.loc[df.res=='hr_ts']
 
+        #make sure they are random
         if len(hr_ts) > 0:
             hr_ts = hr_ts.sample(frac=1)
-
-        #make sure they are random
         lr = lr.sample(frac=1)
         hr = hr.sample(frac=1)
 
@@ -85,6 +84,8 @@ class Catsinom_Dataset_CatineousStream(Dataset):
                 combds = combds.append(old.iloc[old_idx])
                 old_idx+=1
             i+=1
+
+        combds = old.iloc[old_idx:].append(combds)
 
         if len(hr_ts)>0:
             new_end = int((len(new)-new_idx)*transition_phase_after)+new_idx+1
