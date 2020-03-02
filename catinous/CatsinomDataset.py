@@ -50,6 +50,8 @@ class Catsinom_Dataset_CatineousStream(Dataset):
 
         hr_ts = df.loc[df.res=='hr_ts']
 
+        np.random.seed(536358)
+
         if len(hr_ts) > 0:
             hr_ts = hr_ts.sample(frac=1)
 
@@ -86,13 +88,16 @@ class Catsinom_Dataset_CatineousStream(Dataset):
                 old_idx+=1
             i+=1
 
+        combds = old.iloc[old_idx:].append(combds)
+
         if len(hr_ts)>0:
             new_end = int((len(new)-new_idx)*transition_phase_after)+new_idx+1
             combds = combds.append(new.iloc[new_idx+1:new_end])
-
             old_idx = new_end
             old_max = len(new) - 1
+
             i = 0
+            new_idx = 0
             while old_idx <= old_max and (i / ((old_max - new_end) * 2) < 1):
                 take_newclass = np.random.binomial(1, min(i / ((old_max - new_end) * 2), 1))
                 if take_newclass:
@@ -102,6 +107,8 @@ class Catsinom_Dataset_CatineousStream(Dataset):
                     combds = combds.append(new.iloc[old_idx])
                     old_idx += 1
                 i += 1
+
+            combds = combds[:old_end].append(new.iloc[old_idx:]).append(combds[old_end:])
 
             combds = combds.append(new_ts.iloc[new_idx + 1:])
         else:
