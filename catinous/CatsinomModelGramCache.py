@@ -4,6 +4,7 @@ import math
 import os
 import random
 from pprint import pprint
+import numpy as np
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -126,6 +127,20 @@ class CatsinomModelGramCache(pl.LightningModule):
         x, y, filepath, res = batch
         self.grammatrices = []
         misclassified = []
+
+        if ('lr' in res) and ('hr' in res):
+            print(res)
+            exp_name = utils.get_expname(self.hparams)
+            weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_lr_checkpoint.pt'
+            if not os.path.exists(weights_path):
+                torch.save(self.model.state_dict(), weights_path)
+        elif ('hr' in res) and ('hr_ts'):
+            print(res)
+            exp_name = utils.get_expname(self.hparams)
+            weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_hr_checkpoint.pt'
+            if not os.path.exists(weights_path):
+                torch.save(self.model.state_dict(), weights_path)
+
 
         if self.hparams.use_cache:
             torch.cuda.empty_cache()
