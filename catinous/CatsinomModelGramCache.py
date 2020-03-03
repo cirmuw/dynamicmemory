@@ -481,3 +481,9 @@ def is_cached(hparams):
     model = CatsinomModelGramCache(hparams=hparams)
     exp_name = utils.get_expname(model.hparams)
     return os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt')
+
+
+def cached_path(hparams):
+    model = CatsinomModelGramCache(hparams=hparams)
+    exp_name = utils.get_expname(model.hparams)
+    return utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'
