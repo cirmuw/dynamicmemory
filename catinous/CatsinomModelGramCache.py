@@ -43,6 +43,8 @@ class CatsinomModelGramCache(pl.LightningModule):
         self.device = device
         self.t = torch.tensor([0.5]).to(device)
 
+        self.lrcheckpoint = False
+        self.hrcheckpoint = False
 
         if self.hparams.use_cache and self.hparams.continous:
             self.init_cache_and_gramhooks()
@@ -132,14 +134,16 @@ class CatsinomModelGramCache(pl.LightningModule):
             print(res)
             exp_name = utils.get_expname(self.hparams)
             weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_lr_checkpoint.pt'
-            if not os.path.exists(weights_path):
+            if not self.lrcheckpoint:
                 torch.save(self.model.state_dict(), weights_path)
+                self.lrcheckpoint = True
         elif ('hr' in res) and ('hr_ts'):
             print(res)
             exp_name = utils.get_expname(self.hparams)
             weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_hr_checkpoint.pt'
-            if not os.path.exists(weights_path):
+            if not self.hrcheckpoint:
                 torch.save(self.model.state_dict(), weights_path)
+                self.hrcheckpoint = True
 
 
         if self.hparams.use_cache:
@@ -398,7 +402,7 @@ class CatinousCache():
                     l_sum = 0.0
                     for i in range(len(item.current_grammatrix)):
                         l_sum += F.mse_loss(
-                            item.current_grammatrix[i], ci.current_grammatrix[i], reduction='sum')
+                            item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
 
                     if l_sum < mingramloss:
                         mingramloss = l_sum
