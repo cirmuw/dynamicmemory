@@ -398,7 +398,7 @@ class CatinousCache():
                     l_sum = 0.0
                     for i in range(len(item.current_grammatrix)):
                         l_sum += F.mse_loss(
-                            item.current_grammatrix[i], ci.current_grammatrix[i], reduction='sum')
+                            item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
 
                     if l_sum < mingramloss:
                         mingramloss = l_sum
