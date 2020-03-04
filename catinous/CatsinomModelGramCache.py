@@ -46,6 +46,9 @@ class CatsinomModelGramCache(pl.LightningModule):
         self.lrcheckpoint = False
         self.hrcheckpoint = False
 
+        if self.hparams.gram_weights is None:
+            self.hparams.gram_weights = [1, 1, 1, 1]
+
         if self.hparams.use_cache and self.hparams.continous:
             self.init_cache_and_gramhooks()
         else:
@@ -59,12 +62,14 @@ class CatsinomModelGramCache(pl.LightningModule):
                              'direction')
             self.hparams.use_cache = False
 
+
+
         if verbous:
             pprint(vars(self.hparams))
 
 
     def init_cache_and_gramhooks(self):
-        self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum, balance_cache=self.hparams.balance_cache)
+        self.trainingscache = CatinousCache(cachemaximum=self.hparams.cachemaximum, balance_cache=self.hparams.balance_cache, gram_weights=self.hparams.gram_weights)
         self.grammatrices = []
         self.gramlayers = [self.model.layer1[-1].conv1,
                            self.model.layer2[-1].conv1,
@@ -97,6 +102,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['val_check_interval'] = 100
         hparams['base_model'] = None
         hparams['run_postfix'] = '1'
+        hparams['gram_weights'] = [1, 1, 1, 1]
 
         return hparams
 
@@ -375,12 +381,12 @@ class CacheItem():
 
 class CatinousCache():
 
-    def __init__(self, cachemaximum=256, balance_cache=True):
+    def __init__(self, cachemaximum=256, balance_cache=True, gram_weights=None):
         self.cachefull = False
         self.cachelist = []  # not sure if list is the best idea...
         self.cachemaximum = cachemaximum
         self.balance_cache = balance_cache
-
+        self.gram_weights = gram_weights
         self.classcounter = {0: 0, 1: 0}
 
     def insert_element(self, item):
@@ -401,7 +407,7 @@ class CatinousCache():
                 if not self.balance_cache or ci.label==item.label:
                     l_sum = 0.0
                     for i in range(len(item.current_grammatrix)):
-                        l_sum += F.mse_loss(
+                        l_sum += self.gram_weights[i] * F.mse_loss(
                             item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
 
                     if l_sum < mingramloss:
