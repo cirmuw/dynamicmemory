@@ -137,14 +137,12 @@ class CatsinomModelGramCache(pl.LightningModule):
         misclassified = []
 
         if ('lr' in res) and ('hr' in res):
-            print(res)
             exp_name = utils.get_expname(self.hparams)
             weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_lr_checkpoint.pt'
             if not self.lrcheckpoint:
                 torch.save(self.model.state_dict(), weights_path)
                 self.lrcheckpoint = True
         elif ('hr' in res) and ('hr_ts'):
-            print(res)
             exp_name = utils.get_expname(self.hparams)
             weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_hr_checkpoint.pt'
             if not self.hrcheckpoint:
