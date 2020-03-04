@@ -59,6 +59,9 @@ class CatsinomModelGramCache(pl.LightningModule):
                              'direction')
             self.hparams.use_cache = False
 
+        if self.hparams.gram_weights is None:
+            self.hparams.gram_weights = [1, 1, 1, 1]
+
         if verbous:
             pprint(vars(self.hparams))
 
@@ -97,6 +100,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['val_check_interval'] = 100
         hparams['base_model'] = None
         hparams['run_postfix'] = '1'
+        hparams['gram_weights'] = None
 
         return hparams
 
@@ -401,7 +405,7 @@ class CatinousCache():
                 if not self.balance_cache or ci.label==item.label:
                     l_sum = 0.0
                     for i in range(len(item.current_grammatrix)):
-                        l_sum += F.mse_loss(
+                        l_sum += self.hparams.gram_weights[i] * F.mse_loss(
                             item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
 
                     if l_sum < mingramloss:
