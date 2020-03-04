@@ -25,7 +25,7 @@ class CatsinomDataset(Dataset):
 
         if iterations is not None:
             self.df = self.df.sample(iterations*batch_size, replace=True)
-            self.df = self.df.reset_index()
+            self.df = self.df.reset_index(drop=True)
 
         self.root_dir = root_dir
 
