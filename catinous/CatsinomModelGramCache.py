@@ -102,7 +102,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         hparams['val_check_interval'] = 100
         hparams['base_model'] = None
         hparams['run_postfix'] = '1'
-        hparams['gram_weights'] = None
+        hparams['gram_weights'] = [1, 1, 1, 1]
 
         return hparams
 

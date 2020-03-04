@@ -46,7 +46,7 @@ def get_expname(hparams):
         hparams.pop('EWC_lambda')
         hparams.pop('EWC_bn_off')
 
-    if hparams['gram_weights'] is None:
+    if hparams['gram_weights'] == [1, 1, 1, 1]:
         hparams.pop('gram_weights')
 
     hashed_params = mut.hash(hparams, length=10)
