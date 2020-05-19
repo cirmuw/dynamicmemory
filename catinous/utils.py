@@ -53,6 +53,8 @@ def get_expname(hparams):
     expname = ''
     expname += 'cont' if hparams['continous'] else 'batch'
     expname += '_' + hparams['datasetfile'].split('_')[1]
+    if 'logits' in hparams.keys(): #Hackydyhack
+        expname += '_logits'
     if hparams['base_model']:
         expname += '_basemodel_' + hparams['base_model'].split('_')[1]
     if hparams['continous']:
