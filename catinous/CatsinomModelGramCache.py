@@ -244,70 +244,39 @@ class CatsinomModelGramCache(pl.LightningModule):
         y_sig = (y_sig > self.t).long()
         acc = (y[:, None] == y_sig).float().sum() / len(y)
 
-        if res[0] == 'lr':  # TODO: this is not completly right...
-            return {'val_loss_lr': self.loss(y_hat, y[:, None].float()), 'val_acc_lr': acc}
-        elif res[0] == 'hr':
-            # from IPython.core.debugger import set_trace
-            # set_trace()
-            return {'val_loss_hr': self.loss(y_hat, y[:, None].float()), 'val_acc_hr': acc}
-        else:
-            return {'val_loss_hr_ts': self.loss(y_hat, y[:, None].float()), 'val_acc_hr_ts': acc}
+        res = res[0]
+        return {f'val_los_{res}': self.loss(y_hat, y[:, None].float()), f'val_acc_{res}': acc}
+
 
     def validation_end(self, outputs):
-        val_loss_lr_mean = 0
-        val_acc_lr_mean = 0
-        val_loss_hr_mean = 0
-        val_acc_hr_mean = 0
-        val_loss_hr_ts_mean = 0
-        val_acc_hr_ts_mean = 0
-        lr_count = 0
-        hr_count = 0
-        hr_ts_count = 0
+        #val_loss_lr_mean = 0
+        #val_acc_lr_mean = 0
+        #val_loss_hr_mean = 0
+        #val_acc_hr_mean = 0
+        #val_loss_hr_ts_mean = 0
+        #val_acc_hr_ts_mean = 0
+        #lr_count = 0
+        #hr_count = 0
+        #hr_ts_count = 0
+
+        val_mean = dict()
+        res_count = dict()
 
         for output in outputs:
-            if 'val_loss_lr' in output:
-                val_loss_lr_mean += output['val_loss_lr']
-                val_acc_lr_mean += output['val_acc_lr']
-                lr_count += 1
-            elif 'val_loss_hr' in output:
-                val_loss_hr_mean += output['val_loss_hr']
-                val_acc_hr_mean += output['val_acc_hr']
-                hr_count += 1
-            else:
-                val_loss_hr_ts_mean += output['val_loss_hr_ts']
-                val_acc_hr_ts_mean += output['val_acc_hr_ts']
-                hr_ts_count += 1
 
-        if lr_count > 0:
-            val_loss_lr_mean /= lr_count
-            val_loss_lr_mean = val_loss_lr_mean.item()
-            val_acc_lr_mean /= lr_count
-            val_acc_lr_mean = val_acc_lr_mean.item()
-        if hr_count > 0:
-            val_loss_hr_mean /= hr_count
-            val_loss_hr_mean = val_loss_hr_mean.item()
-            val_acc_hr_mean /= hr_count
-            val_acc_hr_mean = val_acc_hr_mean.item()
+            for k in output.keys():
+                if k not in val_mean.keys():
+                    val_mean[k] = 0
+                    res_count[k] = 0
 
-        if hr_ts_count > 0:
-            val_loss_hr_ts_mean /= hr_ts_count
-            val_loss_hr_ts_mean = val_loss_hr_ts_mean.item()
-            val_acc_hr_ts_mean /= hr_ts_count
-            val_acc_hr_ts_mean = val_acc_hr_ts_mean.item()
+                val_mean[k] += output[k]
+                res_count[k] += 1
 
-        tensorboard_logs = {'val_loss_lr': val_loss_lr_mean,
-                            'val_acc_lr': val_acc_lr_mean,
-                            'val_loss_hr': val_loss_hr_mean,
-                            'val_acc_hr': val_acc_hr_mean,
-                            'val_loss_hr_ts': val_loss_hr_ts_mean,
-                            'val_acc_hr_ts': val_acc_hr_ts_mean}
-        return {'avg_val_loss_lr': val_loss_lr_mean,
-                'avg_val_acc_lr': val_acc_lr_mean,
-                'avg_val_loss_hr': val_loss_hr_mean,
-                'avg_val_acc_hr': val_acc_hr_mean,
-                'avg_val_loss_hr_ts': val_loss_hr_ts_mean,
-                'avg_val_acc_hr_ts': val_acc_hr_ts_mean,
-                'log': tensorboard_logs}
+        tensorboard_logs = dict()
+        for k in val_mean.keys():
+            tensorboard_logs[k] = val_mean[k]/res_count[k]
+
+        return {'log': tensorboard_logs}
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -326,7 +295,8 @@ class CatsinomModelGramCache(pl.LightningModule):
         return {'test_loss': avg_loss, 'test_acc': avg_acc, 'log': tensorboard_logs}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.00005)
+        #return torch.optim.Adam(self.parameters(), lr=0.00005)
+        return torch.optim.Adam(self.parameters(), lr=0.00001)
 
     @pl.data_loader
     def train_dataloader(self):
