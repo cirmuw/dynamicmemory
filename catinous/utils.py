@@ -8,8 +8,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
-
-
+import os
 
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
@@ -34,6 +33,38 @@ def default_params(dparams, params):
 def pllogger(hparams):
     return pllogging.TestTubeLogger(LOGGING_FOLDER, name=get_expname(hparams))
 
+
+def get_expname_age(hparams):
+    if type(hparams) is argparse.Namespace:
+        hparams = vars(hparams).copy()
+
+    ##### hack hack hack hack, so don't have to recalculate results for cases without the EWC parameter
+    if not hparams['EWC']:
+        hparams.pop('EWC')
+        hparams.pop('EWC_dataset')
+        hparams.pop('EWC_lambda')
+        hparams.pop('EWC_bn_off')
+
+    if hparams['gram_weights'] == [1, 1, 1, 1]:
+        hparams.pop('gram_weights')
+
+    hashed_params = mut.hash(hparams, length=10)
+    expname = ''
+    expname += 'cont' if hparams['continous'] else 'batch'
+    expname += '_' + os.path.basename(hparams['datasetfile'])[:-4]
+    if 'logits' in hparams.keys(): #Hackydyhack
+        expname += '_logits'
+    if hparams['base_model']:
+        expname += '_basemodel_' + hparams['base_model'].split('_')[1]
+    if hparams['continous']:
+        expname += '_fmiss' if hparams['force_misclassified'] else ''
+        expname += '_cache' if hparams['use_cache'] else '_nocache'
+        expname += '_tf{}'.format(str(hparams['transition_phase_after']).replace('.', ''))
+    else:
+        expname += '_' + '-'.join(hparams['noncontinous_train_splits'])
+    expname += '_'+str(hparams['run_postfix'])
+    expname += '_'+hashed_params
+    return expname
 
 def get_expname(hparams):
     if type(hparams) is argparse.Namespace:
