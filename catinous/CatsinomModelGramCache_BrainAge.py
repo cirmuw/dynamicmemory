@@ -287,7 +287,7 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
 
     def configure_optimizers(self):
         #return torch.optim.Adam(self.parameters(), lr=0.00005)
-        return torch.optim.Adam(self.parameters(), lr=0.001)
+        return torch.optim.Adam(self.parameters(), lr=0.0005)
 
     @pl.data_loader
     def train_dataloader(self):

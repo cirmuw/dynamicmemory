@@ -150,7 +150,7 @@ class BrainAgeDataset(Dataset):
         self.df = self.df.reset_index()
 
         if res is not None:
-            self.df = self.df.loc[self.df.res==res]
+            self.df = self.df.loc[self.df.Scanner==res]
             #self.df = self.df.reset_index()
 
         if iterations is not None:
