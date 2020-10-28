@@ -1,6 +1,5 @@
 import pytorch_lightning.loggers as pllogging
 from pytorch_lightning.utilities.parsing import AttributeDict
-from py_jotools import mut
 import argparse
 import pandas as pd
 from copy import deepcopy
@@ -10,13 +9,46 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 import os
-
+import hashlib
+import pickle
+import skimage.transform
+import numpy as np
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
 TRAINED_MODELS_FOLDER = '/project/catinous/trained_models/'
 TRAINED_CACHE_FOLDER = '/project/catinous/trained_cache/'
 RESPATH = '/project/catinous/results/'
 
+def sort_dict(input_dict):
+    dict_out = {}
+    keys = list(input_dict.keys())
+    keys.sort()
+    for key in keys:
+        if type(input_dict[key]) is dict:
+            value = sort_dict(input_dict[key])
+        else:
+            value = input_dict[key]
+        dict_out[key] = value
+    return dict_out
+
+def hash(item, length=40):
+    assert (type(item) is dict)
+    item = sort_dict(item)
+    return hashlib.sha1(pickle.dumps(item)).hexdigest()[0:length]
+
+def resize(img, size, order=1, anti_aliasing=True):
+    for i in range(len(size)):
+        if size[i] is None:
+            size[i] = img.shape[i]
+    return skimage.transform.resize(img, size, order=order, mode='reflect', anti_aliasing=anti_aliasing, preserve_range=True)
+
+def norm01(x):
+    """Normalizes values in x to be between 0 and 255"""
+    r = (x - np.min(x))
+    m = np.max(r)
+    if m > 0:
+        r = np.divide(r, np.max(r))
+    return r
 
 def default_params(dparams, params):
     """Copies all key value pairs from params to dparams if not present"""
@@ -51,7 +83,7 @@ def get_expname_age(hparams):
     if hparams['gram_weights'] == [1, 1, 1, 1]:
         hparams.pop('gram_weights')
 
-    hashed_params = mut.hash(hparams, length=10)
+    hashed_params = hash(hparams, length=10)
     expname = ''
     expname += 'cont' if hparams['continous'] else 'batch'
     expname += '_' + os.path.basename(hparams['datasetfile'])[:-4]
@@ -85,7 +117,7 @@ def get_expname(hparams):
     if hparams['gram_weights'] == [1, 1, 1, 1]:
         hparams.pop('gram_weights')
 
-    hashed_params = mut.hash(hparams, length=10)
+    hashed_params = hash(hparams, length=10)
     expname = ''
     expname += 'cont' if hparams['continous'] else 'batch'
     expname += '_' + hparams['datasetfile'].split('_')[1]
@@ -171,3 +203,5 @@ def variable(t: torch.Tensor, use_cuda=True, **kwargs):
     if torch.cuda.is_available() and use_cuda:
         t = t.cuda()
     return Variable(t, **kwargs)
+
+

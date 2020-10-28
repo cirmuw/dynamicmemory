@@ -16,7 +16,7 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 from catinous.AgePredictor import EncoderRegressor
 
-from catinous.CatsinomDataset import BrainAgeDataset, BrainAge_Continuous
+from catinous.CatsinomDatasetBrainAge import BrainAgeDataset, BrainAge_Continuous
 from . import utils
 
 
