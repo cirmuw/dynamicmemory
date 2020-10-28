@@ -1,4 +1,5 @@
 import pytorch_lightning.loggers as pllogging
+from pytorch_lightning.utilities.parsing import AttributeDict
 from py_jotools import mut
 import argparse
 import pandas as pd
@@ -37,6 +38,8 @@ def pllogger(hparams):
 def get_expname_age(hparams):
     if type(hparams) is argparse.Namespace:
         hparams = vars(hparams).copy()
+    elif type(hparams) is AttributeDict:
+        hparams = dict(hparams)
 
     ##### hack hack hack hack, so don't have to recalculate results for cases without the EWC parameter
     if not hparams['EWC']:
@@ -69,6 +72,8 @@ def get_expname_age(hparams):
 def get_expname(hparams):
     if type(hparams) is argparse.Namespace:
         hparams = vars(hparams).copy()
+    elif type(hparams) is AttributeDict:
+        hparams = dict(hparams)
 
     ##### hack hack hack hack, so don't have to recalculate results for cases without the EWC parameter
     if not hparams['EWC']:

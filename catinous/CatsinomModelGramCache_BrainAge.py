@@ -28,6 +28,8 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
         self.hparams = argparse.Namespace(**self.hparams)
         self.model = EncoderRegressor()
 
+        self.learning_rate = self.hparams.learning_rate
+
         self.loss = nn.MSELoss()
         self.mae = nn.L1Loss()
         self.prepareewc = False
@@ -39,7 +41,9 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
                 self.prepareewc = True
                 self.ewcloss = utils.BCEWithLogitWithEWCLoss(torch.Tensor([self.hparams.EWC_lambda]))
 
-        self.device = device
+        self.to(device)
+
+        #self.device = device
 
         self.shiftcheckpoint_1 = False
         self.shiftcheckpoint_2 = False
@@ -65,12 +69,12 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
 
 
     def init_cache_and_gramhooks(self):
-        self.trainingscache = CatinousCacheAge(cachemaximum=self.hparams.cachemaximum, balance_cache=self.hparams.balance_cache, gram_weights=self.hparams.gram_weights)
+        self.trainingscache = CatinousCacheAge(cachemaximum=self.hparams.cachemaximum, gram_weights=self.hparams.gram_weights)
         self.grammatrices = []
-        self.gramlayers = [self.model.layer1[-1].conv1,
-                           self.model.layer2[-1].conv1,
-                           self.model.layer3[-1].conv1,
-                           self.model.layer4[-1].conv1]
+        self.gramlayers =  [self.model.encoder.feature.f_conv1_2,
+                           self.model.encoder.feature.f_conv2_2,
+                           self.model.encoder.feature.f_conv3_2,
+                           self.model.encoder.feature.f_conv4_2]
         self.register_hooks()
         logging.info('Gram hooks and cache initialized. Cachesize: %i' % self.hparams.cachemaximum)
 
@@ -100,21 +104,22 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
         hparams['base_model'] = None
         hparams['run_postfix'] = '1'
         hparams['gram_weights'] = [1, 1, 1, 1]
+        hparams['learning_rate'] = 0.0001
 
         return hparams
 
     def gram_matrix(self, input):
         # taken from: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
-        a, b, c, d = input.size()  # a=batch size(=1)
+        a, b, c, d, e = input.size()  # a=batch size(=1)
         # b=number of feature maps
         # (c,d)=dimensions of a f. map (N=c*d)
 
         grams = []
 
         for i in range(a):
-            features = input[i].view(b, c * d)  # resise F_XL into \hat F_XL
+            features = input[i].view(b, c * d * e)  # resise F_XL into \hat F_XL
             G = torch.mm(features, features.t())  # compute the gram product
-            grams.append(G.div(b * c * d))
+            grams.append(G.div(b * c * d * e))
 
         return grams
 
@@ -139,7 +144,7 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
             if not self.shiftcheckpoint_1:
                 torch.save(self.model.state_dict(), weights_path)
                 self.shiftcheckpoint_1 = True
-        elif ('3.0T Philips' in res) and ('3.0T'):
+        elif ('3.0T Philips' in res) and ('3.0T' in res):
             exp_name = utils.get_expname_age(self.hparams)
             weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_shift_2_ckpt.pt'
             if not self.shiftcheckpoint_2:
@@ -179,15 +184,17 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
             x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size,
                                                           self.hparams.random_cache, misclassified)
 
-            x = x.to(self.device)
+            x = x[:, None, :, :, :].to(self.device)
             y = y.to(self.device)
 
             y_hat = self.forward(x.float())
 
             loss = self.loss(y_hat, y.float())
 
-            tensorboard_logs = {'train_loss': loss}
-            return {'loss': loss, 'log': tensorboard_logs}
+            #tensorboard_logs = {'train_loss': loss}
+            #return {'loss': loss, 'log': tensorboard_logs}
+            self.log('train_loss', loss)
+            return loss
         else:
 
             # this turns batchnorm off
@@ -206,7 +213,7 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
                                                     iterations=100,
                                                     batch_size=8,
                                                     split=['base_train']),
-                                    batch_size=8, num_workers=2)
+                                    batch_size=8, num_workers=2, pin_memory=True)
                     self.cuda()
                     self.ewc = utils.EWC(self.model, dl)
                     # self.loss = lambda x,y,m: bc(x, y) + self.hparams.EWC_lambda * self.ewc.penalty(m)
@@ -226,8 +233,8 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
             else:
                 y_hat = self.forward(x.float())
                 loss = self.loss(y_hat, y[:, None].float())
-            tensorboard_logs = {'train_loss': loss}
-            return {'loss': loss, 'log': tensorboard_logs}
+            self.log('train_loss', loss)
+            return loss
 
     def validation_step(self, batch, batch_idx):
         x, y, img, res = batch
@@ -236,20 +243,12 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
         y_hat = self.forward(x.float())
 
         res = res[0]
-        return {f'val_loss_{res}': self.loss(y_hat, y[:, None].float()), f'val_mae_{res}': self.mae(y_hat, y[:, None].float())}
+
+        self.log_dict({f'val_loss_{res}': self.loss(y_hat, y[:, None].float()),
+                       f'val_mae_{res}': self.mae(y_hat, y[:, None].float())})
 
 
-    def validation_end(self, outputs):
-        #val_loss_lr_mean = 0
-        #val_acc_lr_mean = 0
-        #val_loss_hr_mean = 0
-        #val_acc_hr_mean = 0
-        #val_loss_hr_ts_mean = 0
-        #val_acc_hr_ts_mean = 0
-        #lr_count = 0
-        #hr_count = 0
-        #hr_ts_count = 0
-
+    def validation_epoch_end(self, outputs):
         val_mean = dict()
         res_count = dict()
 
@@ -263,11 +262,9 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
                 val_mean[k] += output[k]
                 res_count[k] += 1
 
-        tensorboard_logs = dict()
         for k in val_mean.keys():
-            tensorboard_logs[k] = val_mean[k]/res_count[k]
-
-        return {'log': tensorboard_logs}
+            #tensorboard_logs[k] = val_mean[k]/res_count[k]
+            self.log(k,  val_mean[k]/res_count[k])
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -287,27 +284,27 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
 
     def configure_optimizers(self):
         #return torch.optim.Adam(self.parameters(), lr=0.00005)
-        return torch.optim.Adam(self.parameters(), lr=0.0005)
+        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
-    @pl.data_loader
+    #@pl.data_loader
     def train_dataloader(self):
         if self.hparams.continous:
             return DataLoader(BrainAge_Continuous(self.hparams.datasetfile,
                                                                transition_phase_after=self.hparams.transition_phase_after),
-                              batch_size=self.hparams.batch_size, num_workers=4, drop_last=True)
+                              batch_size=self.hparams.batch_size, num_workers=4, drop_last=True, pin_memory=True)
         else:
             return DataLoader(BrainAgeDataset(self.hparams.datasetfile,
                                               iterations=self.hparams.noncontinous_steps,
                                               batch_size=self.hparams.batch_size,
                                               split=self.hparams.noncontinous_train_splits),
-                              batch_size=self.hparams.batch_size, num_workers=4)
+                              batch_size=self.hparams.batch_size, num_workers=4, pin_memory=True)
 
-    @pl.data_loader
+    #@pl.data_loader
     def val_dataloader(self):
         return DataLoader(BrainAgeDataset(self.hparams.datasetfile,
                                           split='val'),
                           batch_size=4,
-                          num_workers=1)
+                          num_workers=1, pin_memory=True)
 
 
 class CacheItem():
@@ -411,7 +408,9 @@ def trained_model(hparams, show_progress = False):
     weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = pllogging.TestTubeLogger(utils.LOGGING_FOLDER, name=exp_name)
-        trainer = Trainer(gpus=1, max_epochs=1, early_stop_callback=False, logger=logger, val_check_interval=model.hparams.val_check_interval, show_progress_bar=show_progress, checkpoint_callback=False)
+        trainer = Trainer(gpus=1, max_epochs=1,
+                          logger=logger, val_check_interval=model.hparams.val_check_interval,
+                          checkpoint_callback=False)
         trainer.fit(model)
         model.freeze()
         torch.save(model.state_dict(), weights_path)
