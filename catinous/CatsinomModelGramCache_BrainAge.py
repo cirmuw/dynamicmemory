@@ -184,6 +184,8 @@ class CatsinomModelGramCacheBrainAge(pl.LightningModule):
             x, y = self.trainingscache.get_training_batch(self.hparams.training_batch_size,
                                                           self.hparams.random_cache, misclassified)
 
+            print(x.max(), x.min())
+
             x = x[:, None, :, :, :].to(self.device)
             y = y.to(self.device)
 
