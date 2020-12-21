@@ -1,10 +1,8 @@
 import argparse
 import logging
-import math
 import os
 import random
 from pprint import pprint
-import numpy as np
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -16,7 +14,7 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 from catinous.AgePredictor import EncoderRegressor
 
-from catinous.CatsinomDatasetBrainAge import BrainAgeDataset, BrainAge_Continuous
+from catinous.dataset.CatsinomDatasetBrainAge import BrainAgeDataset, BrainAge_Continuous
 from . import utils
 
 

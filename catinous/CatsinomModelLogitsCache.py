@@ -4,7 +4,6 @@ import math
 import os
 import random
 from pprint import pprint
-import numpy as np
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -15,7 +14,7 @@ import torchvision.models as models
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 
-from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
+from catinous.dataset.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
 from . import utils
 
 

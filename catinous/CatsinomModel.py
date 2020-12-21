@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torchvision.models as models
 
 import pytorch_lightning as pl
 
-from catinous.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
-import argparse
+from catinous.dataset.CatsinomDataset import CatsinomDataset, Catsinom_Dataset_CatineousStream
+
 
 class CatsinomModel(pl.LightningModule):
 

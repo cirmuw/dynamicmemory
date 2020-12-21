@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import nibabel as nib
 import torch
-from . import utils
+from catinous import utils
 
 class BrainAgeDataset(Dataset):
 
