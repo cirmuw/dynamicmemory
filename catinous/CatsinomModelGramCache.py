@@ -61,8 +61,6 @@ class CatsinomModelGramCache(pl.LightningModule):
                              'direction')
             self.hparams.use_cache = False
 
-
-
         if verbous:
             pprint(vars(self.hparams))
 
@@ -244,7 +242,7 @@ class CatsinomModelGramCache(pl.LightningModule):
         acc = (y[:, None] == y_sig).float().sum() / len(y)
 
         res = res[0]
-        return {f'val_los_{res}': self.loss(y_hat, y[:, None].float()), f'val_acc_{res}': acc}
+        return {f'val_loss_{res}': self.loss(y_hat, y[:, None].float()), f'val_acc_{res}': acc}
 
 
     def validation_end(self, outputs):

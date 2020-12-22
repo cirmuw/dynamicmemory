@@ -13,6 +13,7 @@ import hashlib
 import pickle
 import skimage.transform
 import numpy as np
+import torchvision.models as models
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
 TRAINED_MODELS_FOLDER = '/project/catinous/trained_models/'
@@ -139,6 +140,55 @@ def get_expname(hparams):
 def save_cache_to_csv(cache, savepath):
     df_cache = pd.DataFrame({'filepath':[ci.filepath for ci in cache], 'label': [ci.label.cpu().numpy()[0] for ci in cache], 'res': [ci.res for ci in cache], 'traincounter': [ci.traincounter for ci in cache]})
     df_cache.to_csv(savepath, index=False, index_label=False)
+
+def gram_matrix(input):
+    # taken from: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
+    a, b, c, d = input.size()  # a=batch size(=1)
+    # b=number of feature maps
+    # (c,d)=dimensions of a f. map (N=c*d)
+
+    grams = []
+
+    for i in range(a):
+        features = input[i].view(b, c * d)  # resise F_XL into \hat F_XL
+        G = torch.mm(features, features.t())  # compute the gram product
+        grams.append(G.div(b * c * d))
+
+    return grams
+
+def gram_matrix_3d(input):
+    # taken from: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
+    a, b, c, d, e = input.size()  # a=batch size(=1)
+    # b=number of feature maps
+    # (c,d)=dimensions of a f. map (N=c*d)
+
+    grams = []
+
+    for i in range(a):
+        features = input[i].view(b, c * d * e)  # resise F_XL into \hat F_XL
+        G = torch.mm(features, features.t())  # compute the gram product
+        grams.append(G.div(b * c * d * e))
+
+    return grams
+
+def load_model(modelstr: str):
+    if modelstr == 'resnet':
+        model = models.resnet50(pretrained=True)
+        model.fc = nn.Sequential(
+            *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
+
+        gramlayers = [model.layer1[-1].conv1,
+                      model.layer2[-1].conv1,
+                      model.layer3[-1].conv1,
+                     model.layer4[-1].conv1]
+    elif modelstr == 'unet':
+        pass
+    elif modelstr == 'rnn':
+        pass
+    else:
+        raise NotImplementedError(f'model {modelstr} not implemented')
+
+    return model, gramlayers
 
 
 # from https://github.com/moskomule/ewc.pytorch/
