@@ -13,6 +13,7 @@ import hashlib
 import pickle
 import skimage.transform
 import numpy as np
+import torchvision.models.segmentation
 import torchvision.models as models
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
