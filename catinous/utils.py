@@ -109,29 +109,32 @@ def get_expname(hparams):
         hparams = dict(hparams)
 
     ##### hack hack hack hack, so don't have to recalculate results for cases without the EWC parameter
-    if not hparams['EWC']:
-        hparams.pop('EWC')
-        hparams.pop('EWC_dataset')
-        hparams.pop('EWC_lambda')
-        hparams.pop('EWC_bn_off')
+    if 'EWC' in hparams:
+        if not hparams['EWC']:
+            hparams.pop('EWC')
+            hparams.pop('EWC_dataset')
+            hparams.pop('EWC_lambda')
+            hparams.pop('EWC_bn_off')
 
-    if hparams['gram_weights'] == [1, 1, 1, 1]:
-        hparams.pop('gram_weights')
+    if 'gram_weights' in hparams:
+        if hparams['gram_weights'] == [1, 1, 1, 1]:
+            hparams.pop('gram_weights')
 
     hashed_params = hash(hparams, length=10)
     expname = ''
-    expname += 'cont' if hparams['continous'] else 'batch'
-    expname += '_' + hparams['datasetfile'].split('_')[1]
+    expname += hparams['task']
+    expname += '_cont' if hparams['continuous'] else '_batch'
+    expname += '_' + os.path.basename(hparams['datasetfile'])[:-4]
     if 'logits' in hparams.keys(): #Hackydyhack
         expname += '_logits'
     if hparams['base_model']:
         expname += '_basemodel_' + hparams['base_model'].split('_')[1]
-    if hparams['continous']:
+    if hparams['continuous']:
         expname += '_fmiss' if hparams['force_misclassified'] else ''
         expname += '_cache' if hparams['use_cache'] else '_nocache'
         expname += '_tf{}'.format(str(hparams['transition_phase_after']).replace('.', ''))
     else:
-        expname += '_' + '-'.join(hparams['noncontinous_train_splits'])
+        expname += '_' + '-'.join(hparams['noncontinuous_train_splits'])
     expname += '_'+str(hparams['run_postfix'])
     expname += '_'+hashed_params
     return expname
@@ -181,8 +184,16 @@ def load_model(modelstr: str):
                       model.layer2[-1].conv1,
                       model.layer3[-1].conv1,
                      model.layer4[-1].conv1]
-    elif modelstr == 'unet':
-        pass
+    elif modelstr == 'fcn':
+        model = models.segmentation.fcn_resnet50(num_classes=4)
+        model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+
+        gramlayers = [
+            model.backbone.layer1[-1].conv1,
+            model.backbone.layer2[-1].conv1,
+            model.backbone.layer3[-1].conv1,
+            model.backbone.layer4[-1].conv1
+        ]
     elif modelstr == 'rnn':
         pass
     else:

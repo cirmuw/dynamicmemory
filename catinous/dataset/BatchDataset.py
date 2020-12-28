@@ -10,7 +10,7 @@ import random
 
 class BatchDataset(Dataset):
 
-    def __init__(self, datasetfile, split=['base_train'], iterations=None, batch_size=None, res=None, seed=None):
+    def init(self, datasetfile, split, iterations, batch_size, res, seed):
         df = pd.read_csv(datasetfile, index_col=0)
         if type(split) is list:
             selection = np.any([df.split == x for x in split], axis=0)
@@ -21,7 +21,7 @@ class BatchDataset(Dataset):
         self.df = self.df.reset_index()
 
         if res is not None:
-            self.df = self.df.loc[self.df.Scanner == res]
+            self.df = self.df.loc[self.df.scanner == res]
 
         if iterations is not None:
             self.df = self.df.sample(iterations * batch_size, replace=True, random_state=seed)
@@ -34,7 +34,9 @@ class BatchDataset(Dataset):
 class BrainAgeBatch(BatchDataset):
 
     def __init__(self, datasetfile, split=['base_train'], iterations=None, batch_size=None, res=None, seed=None):
-        super(BatchDataset, self).__init__(datasetfile, split, iterations, batch_size, res, seed)
+        super(BatchDataset, self).__init__()
+        self.init(datasetfile, split, iterations, batch_size, res, seed)
+
 
     def __getitem__(self, index):
         nimg = nib.load(self.df.iloc[index].Image)
@@ -50,9 +52,11 @@ class BrainAgeBatch(BatchDataset):
 
 class LIDCBatch(BatchDataset):
 
-    def __init__(self, datasetfile, split=['base_train'], iterations=None, batch_size=None, res=None, seed=None,
+    def __init__(self, datasetfile, split=['base'], iterations=None, batch_size=None, res=None, seed=None,
                  cropped_to=None, validation=False):
-        super(BatchDataset, self).__init__(datasetfile, split, iterations, batch_size, res, seed)
+        super(BatchDataset, self).__init__()
+        self.init(datasetfile, split, iterations, batch_size, res, seed)
+
 
         self.cropped_to = cropped_to
         self.validation = validation
@@ -168,8 +172,9 @@ class LIDCBatch(BatchDataset):
 
 class CardiacBatch(BatchDataset):
 
-    def __init__(self, datasetfile, split=['base_train'], iterations=None, batch_size=None, res=None, seed=None):
-        super(BatchDataset, self).__init__(datasetfile, split, iterations, batch_size, res, seed)
+    def __init__(self, datasetfile, split=['base'], iterations=None, batch_size=None, res=None, seed=None):
+        super(BatchDataset, self).__init__()
+        self.init(datasetfile, split, iterations, batch_size, res, seed)
         self.outsize = (240, 196)
 
     def crop_center_or_pad(self, img, cropx, cropy):
@@ -198,7 +203,7 @@ class CardiacBatch(BatchDataset):
             img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
             mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
 
-        return img, mask
+        return img[None, :, :], mask
 
     def __getitem__(self, index):
         elem = self.df.iloc[index]

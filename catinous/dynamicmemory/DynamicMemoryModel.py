@@ -27,7 +27,7 @@ class DynamicMemoryModel(pl.LightningModule):
         self.hparams = utils.default_params(self.get_default_hparams(), hparams)
         self.hparams = argparse.Namespace(**self.hparams)
 
-        self.device = device
+        self.to(device)
 
         #load model according to hparams
         self.model, self.gramlayers = utils.load_model(self.hparams.model)
@@ -39,7 +39,7 @@ class DynamicMemoryModel(pl.LightningModule):
         elif self.hparams.task == 'lidc':
             pass
         elif self.hparams.task == 'cardiac':
-            pass
+            self.loss = nn.CrossEntropyLoss()
 
         #Initilize checkpoints to calculate BWT, FWT after training
         self.scanner_checkpoints = dict()
@@ -47,7 +47,7 @@ class DynamicMemoryModel(pl.LightningModule):
             self.scanner_checkpoints[scanner] = False
 
         #Initialize memory and hooks
-        if self.hparams.use_cache and self.hparams.continous:
+        if self.hparams.use_memory and self.hparams.continuous:
             self.init_memory_and_gramhooks()
         else:
             if verbose:
@@ -58,7 +58,7 @@ class DynamicMemoryModel(pl.LightningModule):
                              'random_cache \n'
                              'force_misclassified \n'
                              'order')
-            self.hparams.use_cache = False
+            self.hparams.use_memory = False
 
         if verbose:
             pprint(vars(self.hparams))
@@ -106,18 +106,24 @@ class DynamicMemoryModel(pl.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
-        x, y, filepath, scanner = batch
+        x, y, scanner, filepath = batch
         self.grammatrices = []
 
         #save checkpoint at scanner shift
-        if not self.scanner_checkpoints[scanner]:
+        newshift = False
+        shifts = None
+        for s in scanner:
+            if s!=self.hparams.order[0] and not self.scanner_checkpoints[s]:
+                newshift = True
+                shifts = s
+        if newshift:
             exp_name = utils.get_expname(self.hparams)
             weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_shift_' + scanner +'.pt'
             torch.save(self.model.state_dict(), weights_path)
-            self.scanner_checkpoints[scanner] = True
+            self.scanner_checkpoints[shifts] = True
 
         #train with memory
-        if self.hparams.use_memory:
+        if self.hparams.use_memory and self.hparams.continuous:
             self.freeze()
             #update gram matrices for current memory
             for mi in self.trainingsmemory:
@@ -144,72 +150,155 @@ class DynamicMemoryModel(pl.LightningModule):
             loss = self.loss(y_hat, y.float())
         else:
             y_hat = self.forward(x.float())
-            loss = self.loss(y_hat, y[:, None].float())
+            loss = self.loss(y_hat['out'], y)
 
-        tensorboard_logs = {'train_loss': loss}
-        return {'loss': loss, 'log': tensorboard_logs}
+        self.grammatrices = []
+        self.log('train_loss', loss)
+        return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.00001)
+        if self.hparams.continuous:
+            return torch.optim.Adam(self.parameters(), lr=0.00001)
+        else:
+            return torch.optim.Adam(self.parameters(), lr=0.0001)
 
-    @pl.data_loader
+    #@pl.data_loader
     def train_dataloader(self):
-        if self.hparams.continous:
+        if self.hparams.continuous:
             if self.hparams.task == 'brainage':
-                return DataLoader(BrainAgeContinuous(self.hparams.root_dir,
-                                                                   self.hparams.datasetfile,
+                return DataLoader(BrainAgeContinuous(self.hparams.datasetfile,
                                                                    transition_phase_after=self.hparams.transition_phase_after),
                                   batch_size=self.hparams.batch_size, num_workers=2, drop_last=True)
             elif self.hparams.task == 'lidc':
-                return DataLoader(LIDCContinuous(self.hparams.root_dir,
-                                                     self.hparams.datasetfile,
+                return DataLoader(LIDCContinuous(self.hparams.datasetfile,
                                                      transition_phase_after=self.hparams.transition_phase_after),
                                   batch_size=self.hparams.batch_size, num_workers=2, drop_last=True)
             elif self.hparams.task == 'cardiac':
-                return DataLoader(CardiacContinuous(self.hparams.root_dir,
-                                                 self.hparams.datasetfile,
+                return DataLoader(CardiacContinuous(self.hparams.datasetfile,
                                                  transition_phase_after=self.hparams.transition_phase_after),
                                   batch_size=self.hparams.batch_size, num_workers=2, drop_last=True)
         else:
             if self.hparams.task == 'brainage':
-                return DataLoader(BrainAgeBatch(self.hparams.root_dir,
-                                                  self.hparams.datasetfile,
-                                                  iterations=self.hparams.noncontinous_steps,
+                return DataLoader(BrainAgeBatch(self.hparams.datasetfile,
+                                                  iterations=self.hparams.noncontinuous_steps,
                                                   batch_size=self.hparams.batch_size,
-                                                  split=self.hparams.noncontinous_train_splits),
+                                                  split=self.hparams.noncontinuous_train_splits),
                                   batch_size=self.hparams.batch_size, num_workers=2)
             elif self.hparams.task == 'lidc':
-                return DataLoader(LIDCBatch(self.hparams.root_dir,
-                                                  self.hparams.datasetfile,
-                                                  iterations=self.hparams.noncontinous_steps,
+                return DataLoader(LIDCBatch(self.hparams.datasetfile,
+                                                  iterations=self.hparams.noncontinuous_steps,
                                                   batch_size=self.hparams.batch_size,
-                                                  split=self.hparams.noncontinous_train_splits),
+                                                  split=self.hparams.noncontinuous_train_splits),
                                   batch_size=self.hparams.batch_size, num_workers=2)
             elif self.hparams.task == 'cardiac':
-                return DataLoader(CardiacBatch(self.hparams.root_dir,
-                                                  self.hparams.datasetfile,
-                                                  iterations=self.hparams.noncontinous_steps,
+                return DataLoader(CardiacBatch(self.hparams.datasetfile,
+                                                  iterations=self.hparams.noncontinuous_steps,
                                                   batch_size=self.hparams.batch_size,
-                                                  split=self.hparams.noncontinous_train_splits),
+                                                  split=self.hparams.noncontinuous_train_splits,
+                                                  res=self.hparams.scanner),
                                   batch_size=self.hparams.batch_size, num_workers=2)
 
-    @pl.data_loader
+    #@pl.data_loader
     def val_dataloader(self):
         if self.hparams.task == 'brainage':
-            return DataLoader(BrainAgeBatch(self.hparams.root_dir,
-                                          self.hparams.datasetfile,
+            return DataLoader(BrainAgeBatch(self.hparams.datasetfile,
                                           split='val'),
                           batch_size=4,
                           num_workers=1)
         elif self.hparams.task == 'lidc':
-            return DataLoader(LIDCBatch(self.hparams.root_dir,
-                                          self.hparams.datasetfile,
+            return DataLoader(LIDCBatch(self.hparams.datasetfile,
                                           split='val'),
                           batch_size=4,
                           num_workers=1)
         elif self.hparams.task == 'cardiac':
-            return DataLoader(CardiacBatch(self.hparams.root_dir,
-                                          self.hparams.datasetfile,
-                                          split='val'),
+            return DataLoader(CardiacBatch(self.hparams.datasetfile,
+                                          split=['val']),
                           batch_size=4,
                           num_workers=1)
+
+    def validation_step(self, batch, batch_idx):
+        self.grammatrices = []
+
+        if self.hparams.task == 'cardiac':
+            x, y, scanner, _ = batch
+
+            scanners = []
+            dice_1 = []
+            dice_2 = []
+            dice_3 = []
+
+            y_hat = self.forward(x)['out']
+            y_hat_flat = torch.argmax(y_hat, dim=1).detach().cpu().numpy()
+            y = y.detach().cpu().numpy()
+
+            for i, m in enumerate(y):
+                scanners.append(scanner[i])
+                dice_1.append(mut.dice(y[i], y_hat_flat[i], classi=1))
+                dice_2.append(mut.dice(y[i], y_hat_flat[i], classi=2))
+                dice_3.append(mut.dice(y[i], y_hat_flat[i], classi=3))
+            return {'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3}
+
+    def validation_epoch_end(self, validation_step_outputs):
+        if self.hparams.task == 'cardiac':
+            scanners = []
+            dice_1 = []
+            dice_2 = []
+            dice_3 = []
+
+            for p in validation_step_outputs:
+                scanners.extend(p['scanner'])
+                dice_1.extend(p['dice_1'])
+                dice_2.extend(p['dice_2'])
+                dice_3.extend(p['dice_3'])
+
+            df_dice = pd.DataFrame({'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3})
+            df_mean = df_dice.groupby('scanner').mean()
+            for s in df_mean.index:
+                self.log(f'val_dice1_{s}', df_mean['dice_1'][s])
+                self.log(f'val_dice2_{s}', df_mean['dice_2'][s])
+                self.log(f'val_dice3_{s}', df_mean['dice_3'][s])
+
+def trained_model(hparams, show_progress = False):
+    df_cache = None
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    model = DynamicMemoryModel(hparams=hparams, device=device)
+    exp_name = utils.get_expname(model.hparams)
+    weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
+    if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
+        logger = utils.pllogger(model.hparams)
+        trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
+                          val_check_interval=model.hparams.val_check_interval,
+                          checkpoint_callback=False)
+        trainer.fit(model)
+        model.freeze()
+        torch.save(model.state_dict(), weights_path)
+        if model.hparams.continuous and model.hparams.use_memory:
+            utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
+    else:
+        print('Read: ' + weights_path)
+        model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
+        model.freeze()
+
+    if model.hparams.continuous and model.hparams.use_memory:
+        df_cache = pd.read_csv(utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
+
+    # always get the last version
+    max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
+    logs = pd.read_csv(utils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version))
+
+    return model, logs, df_cache, exp_name +'.pt'
+
+
+def is_cached(hparams):
+    model = DynamicMemoryModel(hparams=hparams)
+    exp_name = utils.get_expname(model.hparams)
+    return os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt')
+
+
+def cached_path(hparams):
+    model = DynamicMemoryModel(hparams=hparams)
+    exp_name = utils.get_expname(model.hparams)
+    return utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'
