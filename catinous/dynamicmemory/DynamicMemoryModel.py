@@ -84,6 +84,7 @@ class DynamicMemoryModel(pl.LightningModule):
         hparams['base_model'] = None
         hparams['run_postfix'] = 1
         hparams['gram_weights'] = None
+        hparams['dim'] = 2
 
         return hparams
 
