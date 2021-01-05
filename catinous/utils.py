@@ -203,6 +203,13 @@ def load_model(modelstr: str):
         model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+        gramlayers = [
+            model.backbone.body.layer1[-1].conv1,
+            model.backbone.body.layer2[-1].conv1,
+            model.backbone.body.layer3[-1].conv1,
+            model.backbone.body.layer4[-1].conv1
+        ]
     else:
         raise NotImplementedError(f'model {modelstr} not implemented')
 
