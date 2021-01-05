@@ -15,6 +15,7 @@ import skimage.transform
 import numpy as np
 import torchvision.models.segmentation
 import torchvision.models as models
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import pydicom as pyd
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
@@ -197,7 +198,11 @@ def load_model(modelstr: str):
             model.backbone.layer4[-1].conv1
         ]
     elif modelstr == 'rnn':
-        pass
+        num_classes = 3  # 0=background, 1=begnin, 2=malignant
+        # load a model pre-trained pre-trained on COCO
+        model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        in_features = model.roi_heads.box_predictor.cls_score.in_features
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
     else:
         raise NotImplementedError(f'model {modelstr} not implemented')
 

@@ -83,10 +83,14 @@ class DynamicMemoryModel(pl.LightningModule):
         hparams['val_check_interval'] = 100
         hparams['base_model'] = None
         hparams['run_postfix'] = 1
+        hparams['gram_weights'] = None
 
         return hparams
 
     def init_memory_and_gramhooks(self):
+        if self.hparams.gram_weights is None:
+            self.hparams.gram_weights = [1] * len(self.gramlayers)
+
         self.trainingsmemory = DynamicMemory(memorymaximum=self.hparams.memorymaximum, balance_memory=self.hparams.balance_memory, gram_weights=self.hparams.gram_weights)
         self.grammatrices = []
 
