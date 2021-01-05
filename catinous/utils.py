@@ -133,8 +133,7 @@ def get_expname(hparams):
     if hparams['base_model']:
         expname += '_basemodel_' + hparams['base_model'].split('_')[1]
     if hparams['continuous']:
-        expname += '_fmiss' if hparams['force_misclassified'] else ''
-        expname += '_cache' if hparams['use_cache'] else '_nocache'
+        expname += '_mem' if hparams['use_memory'] else '_nomem'
         expname += '_tf{}'.format(str(hparams['transition_phase_after']).replace('.', ''))
     else:
         expname += '_' + '-'.join(hparams['noncontinuous_train_splits'])
