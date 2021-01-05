@@ -71,7 +71,7 @@ class DynamicMemoryModel(pl.LightningModule):
         hparams['datasetfile'] = 'catsinom_combined_dataset.csv'
         hparams['batch_size'] = 8
         hparams['training_batch_size'] = 8
-        hparams['transition_phase_after'] = 0.7
+        hparams['transition_phase_after'] = 0.8
         hparams['cachemaximum'] = 128
         hparams['use_memory'] = True
         hparams['random_memory'] = True
