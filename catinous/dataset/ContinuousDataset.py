@@ -6,6 +6,7 @@ import torch
 from py_jotools import augmentation, mut
 import pydicom as pyd
 import SimpleITK as sitk
+import random
 
 class ContinuousDataset(Dataset):
 
@@ -78,22 +79,45 @@ class BrainAgeContinuous(ContinuousDataset):
 
 class LIDCContinuous(ContinuousDataset):
 
-    def __init__(self, datasetfile, transition_phase_after=.8, order=['ges', 'geb', 'sie', 'time_siemens'], seed=None):
+    def __init__(self, datasetfile, transition_phase_after=.8, order=['ges', 'geb', 'sie', 'time_siemens'], seed=None, cropped_to=None):
         super(ContinuousDataset, self).__init__()
         self.init(datasetfile, transition_phase_after, order, seed)
+        self.cropped_to = cropped_to
 
-    def load_annotation(self, elem):
+    def load_image(self, path, shiftx_aug=0, shifty_aug=0):
+        img = pyd.read_file(path).pixel_array
+        if self.cropped_to is not None:
+            w = img.shape[0]
+            s1 = int((w - self.cropped_to[0]) / 2)
+            e1 = int(s1 + self.cropped_to[0])
+
+            h = img.shape[1]
+            s2 = int((h - self.cropped_to[1]) / 2)
+            e2 = int(s2 + self.cropped_to[1])
+            img = img[s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
+        img = mut.intensity_window(img, low=-1024, high=1500)
+        img = mut.norm01(img)
+
+        # return img[None, :, :]
+        return np.tile(img, [3, 1, 1])
+
+    def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
         dcm = pyd.read_file(elem.image)
-        x = elem.coordX
-        y = elem.coordY
-        diameter = elem.diameter_mm
-        spacing = float(dcm.PixelSpacing[0])
+        x = elem.x1
+        y = elem.y1
+        x2 = elem.x2
+        y2 = elem.y2
 
-        x -= int((diameter / spacing) / 2)
-        y -= int((diameter / spacing) / 2)
-
-        x2 = x + int(diameter / spacing)
-        y2 = y + int(diameter / spacing)
+        if not validation:
+            if self.cropped_to is not None:
+                x -= (dcm.Rows - self.cropped_to[0]) / 2
+                y -= (dcm.Columns - self.cropped_to[1]) / 2
+                x2 -= (dcm.Rows - self.cropped_to[0]) / 2
+                y2 -= (dcm.Columns - self.cropped_to[1]) / 2
+            y -= shiftx_aug
+            x -= shifty_aug
+            y2 -= shiftx_aug
+            x2 -= shifty_aug
 
         box = np.zeros((1, 4))
         box[0, 0] = x
@@ -106,8 +130,15 @@ class LIDCContinuous(ContinuousDataset):
     def __getitem__(self, index):
         elem = self.df.iloc[index]
 
-        img = self.load_image(elem.image)
-        annotation = self.load_annotation(elem)
+        if self.cropped_to is None:
+            shiftx_aug = 0
+            shifty_aug = 0
+        else:
+            shiftx_aug = random.randint(-20, 20)
+            shifty_aug = random.randint(-20, 20)
+
+        img = self.load_image(elem.image, shiftx_aug, shifty_aug)
+        annotation = self.load_annotation(elem, shiftx_aug, shifty_aug)
 
         target = {}
         target['boxes'] = torch.as_tensor(annotation, dtype=torch.float32)
@@ -117,7 +148,7 @@ class LIDCContinuous(ContinuousDataset):
             ((annotation[:, 3] - annotation[:, 1]) * (annotation[:, 2] - annotation[:, 0])))
         target['iscrowd'] = torch.zeros((1,), dtype=torch.int64)
 
-        return torch.as_tensor(img, dtype=torch.float32), target, elem.res, elem.image
+        return torch.as_tensor(img, dtype=torch.float32), target, elem.scanner, elem.image
 
 class CardiacContinuous(ContinuousDataset):
 

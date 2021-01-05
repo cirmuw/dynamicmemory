@@ -117,23 +117,21 @@ class LIDCBatch(BatchDataset):
 
     def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
         dcm = pyd.read_file(elem.image)
-        x = elem.coordX
-        y = elem.coordY
-        diameter = elem.diameter_mm
-        spacing = float(dcm.PixelSpacing[0])
+        x = elem.x1
+        y = elem.y1
+        x2 = elem.x2
+        y2 = elem.y2
 
         if not validation:
             if self.cropped_to is not None:
                 x -= (dcm.Rows - self.cropped_to[0]) / 2
                 y -= (dcm.Columns - self.cropped_to[1]) / 2
+                x2 -= (dcm.Rows - self.cropped_to[0]) / 2
+                y2 -= (dcm.Columns - self.cropped_to[1]) / 2
             y -= shiftx_aug
             x -= shifty_aug
-
-        x -= int((diameter / spacing) / 2)
-        y -= int((diameter / spacing) / 2)
-
-        x2 = x + int(diameter / spacing)
-        y2 = y + int(diameter / spacing)
+            y2 -= shiftx_aug
+            x2 -= shifty_aug
 
         box = np.zeros((1, 4))
         box[0, 0] = x
@@ -168,7 +166,7 @@ class LIDCBatch(BatchDataset):
             ((annotation[:, 3] - annotation[:, 1]) * (annotation[:, 2] - annotation[:, 0])))
         target['iscrowd'] = torch.zeros((1,), dtype=torch.int64)
 
-        return torch.as_tensor(img, dtype=torch.float32), target, elem.res, elem.image
+        return torch.as_tensor(img, dtype=torch.float32), target, elem.scanner, elem.image
 
 class CardiacBatch(BatchDataset):
 

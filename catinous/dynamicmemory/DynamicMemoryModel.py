@@ -44,6 +44,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
         #Initilize checkpoints to calculate BWT, FWT after training
         self.scanner_checkpoints = dict()
+        self.scanner_checkpoints[self.hparams.order[0]] = True
         for scanner in self.hparams.order[1:]:
             self.scanner_checkpoints[scanner] = False
 
