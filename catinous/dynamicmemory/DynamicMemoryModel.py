@@ -72,7 +72,7 @@ class DynamicMemoryModel(pl.LightningModule):
         hparams['batch_size'] = 8
         hparams['training_batch_size'] = 8
         hparams['transition_phase_after'] = 0.8
-        hparams['cachemaximum'] = 128
+        hparams['memorymaximum'] = 128
         hparams['use_memory'] = True
         hparams['random_memory'] = True
         hparams['balance_memory'] = False
