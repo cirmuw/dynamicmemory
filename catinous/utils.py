@@ -321,50 +321,50 @@ def filter_boxes_area(boxes, scores, min_area=10):
 
 
 def correct_boxes(boxes_np, scores_np, x_shift=112, y_shift=112):
-    if len(boxes_np[0]) > 0:
-        boxes_np[0][:, 0] += x_shift
-        boxes_np[0][:, 1] += y_shift
-        boxes_np[0][:, 2] += x_shift
-        boxes_np[0][:, 3] += y_shift
+    #if len(boxes_np[0]) > 0:
+    #    boxes_np[0][:, 0] += x_shift
+    #    boxes_np[0][:, 1] += y_shift
+    #    boxes_np[0][:, 2] += x_shift
+    #    boxes_np[0][:, 3] += y_shift
 
-    if len(boxes_np[2]) > 0:
-        boxes_np[2][:, 1] += y_shift * 2
-        boxes_np[2][:, 3] += y_shift * 2
+    #if len(boxes_np[2]) > 0:
+    #    boxes_np[2][:, 1] += y_shift * 2
+    #    boxes_np[2][:, 3] += y_shift * 2
 
-    if len(boxes_np[3]) > 0:
-        boxes_np[3][:, 0] += x_shift * 2
-        boxes_np[3][:, 2] += x_shift * 2
+    #if len(boxes_np[3]) > 0:
+    #    boxes_np[3][:, 0] += x_shift * 2
+    #    boxes_np[3][:, 2] += x_shift * 2
 
-    if len(boxes_np[4]) > 0:
-        boxes_np[4][:, 0] += x_shift * 2
-        boxes_np[4][:, 2] += x_shift * 2
-        boxes_np[4][:, 1] += y_shift * 2
-        boxes_np[4][:, 3] += y_shift * 2
+    #if len(boxes_np[4]) > 0:
+    #    boxes_np[4][:, 0] += x_shift * 2
+    #    boxes_np[4][:, 2] += x_shift * 2
+    #    boxes_np[4][:, 1] += y_shift * 2
+    #    boxes_np[4][:, 3] += y_shift * 2
 
     # there is a better way for sure... move fast and break things
-    final_boxes = []
-    final_boxes.extend(boxes_np[0])
-    final_boxes.extend(boxes_np[1])
-    final_boxes.extend(boxes_np[2])
-    final_boxes.extend(boxes_np[3])
-    final_boxes.extend(boxes_np[4])
+    #final_boxes = []
+    #final_boxes.extend(boxes_np[0])
+    #final_boxes.extend(boxes_np[1])
+    #final_boxes.extend(boxes_np[2])
+    #final_boxes.extend(boxes_np[3])
+    #final_boxes.extend(boxes_np[4])
 
-    final_scores = []
-    final_scores.extend(scores_np[0])
-    final_scores.extend(scores_np[1])
-    final_scores.extend(scores_np[2])
-    final_scores.extend(scores_np[3])
-    final_scores.extend(scores_np[4])
+    #final_scores = []
+    #final_scores.extend(scores_np[0])
+    #final_scores.extend(scores_np[1])
+    #final_scores.extend(scores_np[2])
+    #final_scores.extend(scores_np[3])
+    #final_scores.extend(scores_np[4])
 
-    if len(final_boxes) > 0:
-        bidx = torch.ops.torchvision.nms(torch.as_tensor(final_boxes), torch.as_tensor(final_scores), 0.2)
+    #if len(final_boxes) > 0:
+    bidx = torch.ops.torchvision.nms(torch.as_tensor(boxes_np), torch.as_tensor(scores_np), 0.2)
 
-        if len(bidx) == 1:
-            final_scores = [np.array(final_scores)[bidx]]
-            final_boxes = [np.array(final_boxes)[bidx]]
-        else:
-            final_scores = np.array(final_scores)[bidx]
-            final_boxes = np.array(final_boxes)[bidx]
+    if len(bidx) == 1:
+        final_scores = [np.array(scores_np)[bidx]]
+        final_boxes = [np.array(boxes_np)[bidx]]
+    else:
+        final_scores = np.array(scores_np)[bidx]
+        final_boxes = np.array(boxes_np)[bidx]
 
     return final_boxes, final_scores
 

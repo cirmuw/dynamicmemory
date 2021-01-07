@@ -79,7 +79,7 @@ class BrainAgeContinuous(ContinuousDataset):
 
 class LIDCContinuous(ContinuousDataset):
 
-    def __init__(self, datasetfile, transition_phase_after=.8, order=['ges', 'geb', 'sie', 'time_siemens'], seed=None, cropped_to=None):
+    def __init__(self, datasetfile, transition_phase_after=.8, order=['ges', 'geb', 'sie', 'time_siemens'], seed=None, cropped_to=(288, 288)):
         super(ContinuousDataset, self).__init__()
         self.init(datasetfile, transition_phase_after, order, seed)
         self.cropped_to = cropped_to
@@ -184,7 +184,7 @@ class CardiacContinuous(ContinuousDataset):
             img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
             mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
 
-        return img, mask
+        return img[None, :, :], mask
 
     def __getitem__(self, index):
         elem = self.df.iloc[index]

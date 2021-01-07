@@ -127,22 +127,23 @@ class DynamicMemoryModel(pl.LightningModule):
             for s in scanner:
                 if s != self.hparams.order[0] and not self.scanner_checkpoints[s]:
                     newshift = True
-                    shifts = s
+                    shift_scanner = s
             if newshift:
                 exp_name = utils.get_expname(self.hparams)
-                weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_shift_' + scanner + '.pt'
+                weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_shift_' + shift_scanner + '.pt'
                 torch.save(self.model.state_dict(), weights_path)
-                self.scanner_checkpoints[shifts] = True
+                self.scanner_checkpoints[shift_scanner] = True
             self.freeze()
             #update gram matrices for current memory
             for mi in self.trainingsmemory:
                 if mi is not None:
                     self.grammatrices = []
-                    _ = self.forward(mi.img.float().to(self.device))
+                    _ = self.forward(mi.img[None, :, :, :].float().to(self.device))
                     mi.current_grammatrix = [gm[0].cpu() for gm in self.grammatrices]
 
             #add new batch to memory
             self.grammatrices = []
+
             _ = self.forward(x.float())
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu() for bg in self.grammatrices]
@@ -151,7 +152,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
             self.unfreeze()
 
-            x, y = self.trainingsmemory.get_training_batch(self.hparams.batchsize, self.hparams.random_memory)
+            x, y = self.trainingsmemory.get_training_batch(self.hparams.batch_size, self.hparams.random_memory)
 
             if self.hparams.task=='lidc':
                 x = list(i.to(self.device) for i in x)
@@ -160,10 +161,9 @@ class DynamicMemoryModel(pl.LightningModule):
                 loss = sum(l for l in loss_dict.values())
             else:
                 x = x.to(self.device)
-                y = y.to(self.device)
-
+                y = torch.stack(y).to(self.device)
                 y_hat = self.forward(x.float())
-                loss = self.loss(y_hat, y.float())
+                loss = self.loss(y_hat['out'], y)
         else:
             if self.hparams.task == 'lidc':
                 x = list(i.to(self.device) for i in x)
@@ -232,7 +232,7 @@ class DynamicMemoryModel(pl.LightningModule):
                           num_workers=1)
         elif self.hparams.task == 'lidc':
             return DataLoader(LIDCBatch(self.hparams.datasetfile,
-                                          split='val'),
+                                          split='val', validation=True),
                           batch_size=4,
                           num_workers=2,
                           collate_fn=utils.collate_fn)
@@ -265,17 +265,23 @@ class DynamicMemoryModel(pl.LightningModule):
             return {'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3}
         elif self.hparams.task == 'lidc':
             images, targets, scanner, filepath = batch
-            images = list(image.to(self.device) for image in images[0])
+            images = list(image.to(self.device) for image in images)
 
             out = self.model(images)
 
             out_boxes = [
                 utils.filter_boxes_area(out[i]['boxes'].cpu().detach().numpy(), out[i]['scores'].cpu().detach().numpy())
                 for i in range(len(out))]
+
             boxes_np = [b[0] for b in out_boxes]
             scores_np = [b[1] for b in out_boxes]
 
-            final_boxes, final_scores = utils.correct_boxes(boxes_np, scores_np)
+            final_boxes = []
+            final_scores = []
+            for i, box_np in enumerate(boxes_np):
+                fb, fs = utils.correct_boxes(box_np, scores_np[i])
+                final_boxes.append(fb)
+                final_scores.append(fs)
 
             gt = []
             for t in targets:
@@ -354,6 +360,7 @@ class DynamicMemoryModel(pl.LightningModule):
                                 true_positives += 1
                             else:
                                 false_negatives += 1
+
                         overall_true_pos[s][k] += true_positives
                         overall_false_pos[s][k] += false_positives
                         overall_false_neg[s][k] += false_negatives

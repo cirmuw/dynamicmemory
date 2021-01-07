@@ -53,7 +53,7 @@ class BrainAgeBatch(BatchDataset):
 class LIDCBatch(BatchDataset):
 
     def __init__(self, datasetfile, split=['base'], iterations=None, batch_size=None, res=None, seed=None,
-                 cropped_to=None, validation=False):
+                 cropped_to=(288, 288), validation=False):
         super(BatchDataset, self).__init__()
         self.init(datasetfile, split, iterations, batch_size, res, seed)
 
@@ -95,25 +95,8 @@ class LIDCBatch(BatchDataset):
         im_crop = img[s1:e1, s2:e2]
         im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
         im_crop = mut.norm01(im_crop)
-        imgs.append(np.tile(im_crop, [3, 1, 1]))  # center crop
-        im_crop = img[s1 - x_shift:e1 - x_shift, s2 - y_shift:e2 - y_shift]
-        im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
-        im_crop = mut.norm01(im_crop)
-        imgs.append(np.tile(im_crop, [3, 1, 1]))  # center crop
-        im_crop = img[s1 + x_shift:e1 + x_shift, s2 - y_shift:e2 - y_shift]
-        im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
-        im_crop = mut.norm01(im_crop)
-        imgs.append(np.tile(im_crop, [3, 1, 1]))  # center crop
-        im_crop = img[s1 - x_shift:e1 - x_shift, s2 + y_shift:e2 + y_shift]
-        im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
-        im_crop = mut.norm01(im_crop)
-        imgs.append(np.tile(im_crop, [3, 1, 1]))  # center crop
-        im_crop = img[s1 + x_shift:e1 + x_shift, s2 + y_shift:e2 + y_shift]
-        im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
-        im_crop = mut.norm01(im_crop)
-        imgs.append(np.tile(im_crop, [3, 1, 1]))  # center crop
 
-        return np.array(imgs)
+        return np.tile(im_crop, [3, 1, 1])
 
     def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
         dcm = pyd.read_file(elem.image)

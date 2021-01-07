@@ -52,31 +52,33 @@ class DynamicMemory():
         imgshape = self.memorylist[0].img.shape
 
         x = torch.empty(size=(batchsize, imgshape[0], imgshape[1], imgshape[2]))
-        y = torch.empty(size=(batchsize, 1))
+
+        y = list()
+
         j = 0
 
         if forceditems is not None:
             for ci in forceditems:
                 x[j] = ci.img
-                y[j] = ci.label
+                y.append(ci.target)
                 ci.traincounter += 1
                 j += 1
 
             batchsize -= j
 
         if randombatch:
-            random.shuffle(self.cachelist)
+            random.shuffle(self.memorylist)
         else:
-            self.cachelist.sort()
+            self.memorylist.sort()
 
         if batchsize>0:
-            for ci in self.cachelist[-batchsize:]:
+            for ci in self.memorylist[-batchsize:]:
                 x[j] = ci.img
-                y[j] = ci.label
+                y.append(ci.target)
                 ci.traincounter += 1
                 j += 1
 
         return x, y
 
     def __iter__(self):
-        return self.cachelist.__iter__()
+        return self.memorylist.__iter__()
