@@ -409,7 +409,7 @@ def trained_model(hparams, show_progress = False):
         model.freeze()
         torch.save(model.state_dict(), weights_path)
         if model.hparams.continuous and model.hparams.use_memory:
-            utils.save_cache_to_csv(model.trainingscache.cachelist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
+            utils.save_cache_to_csv(model.trainingsmemory.memorylist, utils.TRAINED_CACHE_FOLDER + exp_name + '.csv')
     else:
         print('Read: ' + weights_path)
         model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
