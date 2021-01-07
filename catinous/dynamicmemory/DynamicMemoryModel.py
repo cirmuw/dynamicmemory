@@ -365,6 +365,7 @@ class DynamicMemoryModel(pl.LightningModule):
                         overall_false_pos[s][k] += false_positives
                         overall_false_neg[s][k] += false_negatives
                         overall_boxes_count[s][k] += boxes_count
+
             aps = dict()
             for scanner in self.hparams.order:
                 for k in np.arange(0.0, 1.01, 0.05):

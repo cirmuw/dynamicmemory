@@ -62,7 +62,13 @@ class LIDCBatch(BatchDataset):
         self.validation = validation
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        img = pyd.read_file(path).pixel_array
+        try:
+            img = pyd.read_file(path).pixel_array
+        except Exception as e:
+            img = pyd.read_file(path, force=True)
+            img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
+            img = img.pixel_array
+
         if self.cropped_to is not None:
             w = img.shape[0]
             s1 = int((w - self.cropped_to[0]) / 2)
@@ -78,39 +84,94 @@ class LIDCBatch(BatchDataset):
         # return img[None, :, :]
         return np.tile(img, [3, 1, 1])
 
-    def load_image_validation(self, path):
-        img = pyd.read_file(path).pixel_array
+    def load_image_validation(self, elem):
+        try:
+            dcm = pyd.read_file(elem.image)
+            img = dcm.pixel_array
+        except Exception as e:
+            dcm = pyd.read_file(elem.image, force=True)
+            dcm.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
+            img = dcm.pixel_array
 
-        imgs = []
-
-        w = img.shape[0]
-        h = img.shape[1]
-        x_shift = int((w - self.cropped_to[0]) / 2)
-        y_shift = int((h - self.cropped_to[1]) / 2)
-        s1 = x_shift
-        e1 = int(s1 + self.cropped_to[0])
-        s2 = y_shift
-        e2 = int(s2 + self.cropped_to[1])
-
-        im_crop = img[s1:e1, s2:e2]
-        im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
-        im_crop = mut.norm01(im_crop)
-
-        return np.tile(im_crop, [3, 1, 1])
-
-    def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
-        dcm = pyd.read_file(elem.image)
         x = elem.x1
         y = elem.y1
         x2 = elem.x2
         y2 = elem.y2
 
+
+        if self.cropped_to is not None:
+            x -= (dcm.Rows - self.cropped_to[0]) / 2
+            y -= (dcm.Columns - self.cropped_to[1]) / 2
+            x2 -= (dcm.Rows - self.cropped_to[0]) / 2
+            y2 -= (dcm.Columns - self.cropped_to[1]) / 2
+
+
+            w = img.shape[0]
+            h = img.shape[1]
+            x_shift = int((w - self.cropped_to[0]) / 2)
+            y_shift = int((h - self.cropped_to[1]) / 2)
+            s1 = x_shift
+            e1 = int(s1 + self.cropped_to[0])
+            s2 = y_shift
+            e2 = int(s2 + self.cropped_to[1])
+
+            if x<0:
+                s2 -= (x*-1) + 5
+                e2 -= (x*-1) + 5
+
+                x2 = 5+(x2-x)
+                x = 5
+            elif x>self.cropped_to[0]:
+                s2 += (x2-self.cropped_to[0]+5)
+                e2 += (x2-self.cropped_to[0]+5)
+                if e2>dcm.Rows:
+                    s2 -= (e2-dcm.Rows)
+                    e2 = min(e2,dcm.Rows)
+
+                x = self.cropped_to[0] - (x2-x) - 5
+                x2 = self.cropped_to[0]-5
+
+            if y<0:
+                s1 += (y * -1) + 5
+                e1 += (y * -1) + 5
+
+                y2 = 5 + (y2 - y)
+                y = 5
+
+            im_crop = img[int(s1):int(e1), int(s2):int(e2)]
+            im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
+            try:
+                im_crop = mut.norm01(im_crop)
+            except Exception as e:
+                print(im_crop.shape, s1, e1, s2, e2, y, y2, elem.image)
+                raise e
+        else:
+            im_crop = img
+            im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
+            im_crop = mut.norm01(im_crop)
+
+        box = np.zeros((1, 4))
+        box[0, 0] = x
+        box[0, 1] = y
+        box[0, 2] = x2
+        box[0, 3] = y2
+
+        return np.tile(im_crop, [3, 1, 1]), box
+
+    def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
+        dcm = pyd.read_file(elem.image, force=True)
+        x = elem.x1
+        y = elem.y1
+        x2 = elem.x2
+        y2 = elem.y2
+
+        if self.cropped_to is not None:
+            x -= (dcm.Rows - self.cropped_to[0]) / 2
+            y -= (dcm.Columns - self.cropped_to[1]) / 2
+            x2 -= (dcm.Rows - self.cropped_to[0]) / 2
+            y2 -= (dcm.Columns - self.cropped_to[1]) / 2
+
         if not validation:
-            if self.cropped_to is not None:
-                x -= (dcm.Rows - self.cropped_to[0]) / 2
-                y -= (dcm.Columns - self.cropped_to[1]) / 2
-                x2 -= (dcm.Rows - self.cropped_to[0]) / 2
-                y2 -= (dcm.Columns - self.cropped_to[1]) / 2
             y -= shiftx_aug
             x -= shifty_aug
             y2 -= shiftx_aug
@@ -138,8 +199,7 @@ class LIDCBatch(BatchDataset):
             img = self.load_image(elem.image, shiftx_aug, shifty_aug)
             annotation = self.load_annotation(elem, shiftx_aug, shifty_aug)
         else:
-            img = self.load_image_validation(elem.image)
-            annotation = self.load_annotation(elem, 0, 0, True)
+            img, annotation = self.load_image_validation(elem)
 
         target = {}
         target['boxes'] = torch.as_tensor(annotation, dtype=torch.float32)

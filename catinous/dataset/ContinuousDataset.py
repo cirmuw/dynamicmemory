@@ -85,7 +85,14 @@ class LIDCContinuous(ContinuousDataset):
         self.cropped_to = cropped_to
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        img = pyd.read_file(path).pixel_array
+        try:
+            img = pyd.read_file(path).pixel_array
+        except Exception as e:
+            img = pyd.read_file(path, force=True)
+            img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
+            img = img.pixel_array
+
+
         if self.cropped_to is not None:
             w = img.shape[0]
             s1 = int((w - self.cropped_to[0]) / 2)
@@ -102,7 +109,7 @@ class LIDCContinuous(ContinuousDataset):
         return np.tile(img, [3, 1, 1])
 
     def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
-        dcm = pyd.read_file(elem.image)
+        dcm = pyd.read_file(elem.image, force=True)
         x = elem.x1
         y = elem.y1
         x2 = elem.x2

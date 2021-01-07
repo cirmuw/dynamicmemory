@@ -357,16 +357,19 @@ def correct_boxes(boxes_np, scores_np, x_shift=112, y_shift=112):
     #final_scores.extend(scores_np[4])
 
     #if len(final_boxes) > 0:
-    bidx = torch.ops.torchvision.nms(torch.as_tensor(boxes_np), torch.as_tensor(scores_np), 0.2)
+    if len(boxes_np) > 0:
+        bidx = torch.ops.torchvision.nms(torch.as_tensor(boxes_np), torch.as_tensor(scores_np), 0.2)
 
-    if len(bidx) == 1:
-        final_scores = [np.array(scores_np)[bidx]]
-        final_boxes = [np.array(boxes_np)[bidx]]
+        if len(bidx) == 1:
+            final_scores = [np.array(scores_np)[bidx]]
+            final_boxes = [np.array(boxes_np)[bidx]]
+        else:
+            final_scores = np.array(scores_np)[bidx]
+            final_boxes = np.array(boxes_np)[bidx]
+
+        return final_boxes, final_scores
     else:
-        final_scores = np.array(scores_np)[bidx]
-        final_boxes = np.array(boxes_np)[bidx]
-
-    return final_boxes, final_scores
+        return boxes_np, scores_np
 
 
 def load_box_annotation(elem, cropped_to=None, shiftx_aug=0, shifty_aug=0, validation=False):
