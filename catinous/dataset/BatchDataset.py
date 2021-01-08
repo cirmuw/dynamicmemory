@@ -218,6 +218,13 @@ class CardiacBatch(BatchDataset):
         self.init(datasetfile, split, iterations, batch_size, res, seed)
         self.outsize = (240, 196)
 
+        self.imgs = []
+        self.masks = []
+        for i, row in self.df.iterrows():
+            img, mask = self.load_image(row)
+            self.imgs.append(img)
+            self.masks.append(mask)
+
     def crop_center_or_pad(self, img, cropx, cropy):
         x, y = img.shape
 
@@ -248,6 +255,8 @@ class CardiacBatch(BatchDataset):
 
     def __getitem__(self, index):
         elem = self.df.iloc[index]
-        img, mask = self.load_image(elem)
+        #img, mask = self.load_image(elem)
+        img = self.imgs[index]
+        mask = self.masks[index]
         return torch.as_tensor(img, dtype=torch.float32), torch.as_tensor(mask,
                                                                           dtype=torch.long), elem.scanner, elem.filepath

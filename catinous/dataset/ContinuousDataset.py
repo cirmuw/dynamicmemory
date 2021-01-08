@@ -162,8 +162,14 @@ class CardiacContinuous(ContinuousDataset):
     def __init__(self, datasetfile, transition_phase_after=.8, order=['Siemens', 'GE', 'Philips', 'Canon'], seed=None):
         super(ContinuousDataset, self).__init__()
         self.init(datasetfile, transition_phase_after, order, seed)
-
         self.outsize = (240, 196)
+
+        self.imgs = []
+        self.masks = []
+        for i, row in self.df.iterrows():
+            img, mask = self.load_image(row)
+            self.imgs.append(img)
+            self.masks.append(mask)
 
     def crop_center_or_pad(self, img, cropx, cropy):
         x, y = img.shape
@@ -195,6 +201,8 @@ class CardiacContinuous(ContinuousDataset):
 
     def __getitem__(self, index):
         elem = self.df.iloc[index]
-        img, mask = self.load_image(elem)
+        # img, mask = self.load_image(elem)
+        img = self.imgs[index]
+        mask = self.masks[index]
         return torch.as_tensor(img, dtype=torch.float32), torch.as_tensor(mask,
                                                                           dtype=torch.long), elem.scanner, elem.filepath
