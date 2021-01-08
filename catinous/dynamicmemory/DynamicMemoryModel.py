@@ -39,7 +39,7 @@ class DynamicMemoryModel(pl.LightningModule):
             self.seperatestyle = False
 
         if not self.hparams.base_model is None:
-            self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model), map_location=device))
+            self.model.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model), map_location=device))
 
         if self.hparams.task == 'brainage':
             self.loss = nn.MSELoss()
