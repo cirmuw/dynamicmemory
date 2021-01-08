@@ -85,14 +85,7 @@ class LIDCContinuous(ContinuousDataset):
         self.cropped_to = cropped_to
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        try:
-            img = pyd.read_file(path).pixel_array
-        except Exception as e:
-            img = pyd.read_file(path, force=True)
-            img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
-            img = img.pixel_array
-
-
+        img = pyd.read_file(path).pixel_array
         if self.cropped_to is not None:
             w = img.shape[0]
             s1 = int((w - self.cropped_to[0]) / 2)
@@ -109,7 +102,7 @@ class LIDCContinuous(ContinuousDataset):
         return np.tile(img, [3, 1, 1])
 
     def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
-        dcm = pyd.read_file(elem.image, force=True)
+        dcm = pyd.read_file(elem.image)
         x = elem.x1
         y = elem.y1
         x2 = elem.x2
@@ -162,14 +155,8 @@ class CardiacContinuous(ContinuousDataset):
     def __init__(self, datasetfile, transition_phase_after=.8, order=['Siemens', 'GE', 'Philips', 'Canon'], seed=None):
         super(ContinuousDataset, self).__init__()
         self.init(datasetfile, transition_phase_after, order, seed)
-        self.outsize = (240, 196)
 
-        self.imgs = []
-        self.masks = []
-        for i, row in self.df.iterrows():
-            img, mask = self.load_image(row)
-            self.imgs.append(img)
-            self.masks.append(mask)
+        self.outsize = (240, 196)
 
     def crop_center_or_pad(self, img, cropx, cropy):
         x, y = img.shape
@@ -186,23 +173,24 @@ class CardiacContinuous(ContinuousDataset):
         return img[startx:startx + cropx, starty:starty + cropy]
 
     def load_image(self, elem):
-        img = sitk.ReadImage(elem.filepath)
-        img = sitk.GetArrayFromImage(img)[elem.t, elem.slice, :, :]
-        img = mut.norm01(img)
+        #img = sitk.ReadImage(elem.filepath)
+        #img = sitk.GetArrayFromImage(img)[elem.t, elem.slice, :, :]
+        #img = mut.norm01(img)
 
-        mask = sitk.ReadImage(elem.filepath[:-7] + '_gt.nii.gz')
-        mask = sitk.GetArrayFromImage(mask)[elem.t, elem.slice, :, :]
+        #mask = sitk.ReadImage(elem.filepath[:-7] + '_gt.nii.gz')
+        #mask = sitk.GetArrayFromImage(mask)[elem.t, elem.slice, :, :]
 
-        if img.shape != self.outsize:
-            img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
-            mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
+        #if img.shape != self.outsize:
+        #    img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
+        #    mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
+
+        img = np.load(elem.slicepath)
+        mask = np.load(elem.slicepath[:-4] + '_gt.npy')
 
         return img[None, :, :], mask
 
     def __getitem__(self, index):
         elem = self.df.iloc[index]
-        # img, mask = self.load_image(elem)
-        img = self.imgs[index]
-        mask = self.masks[index]
+        img, mask = self.load_image(elem)
         return torch.as_tensor(img, dtype=torch.float32), torch.as_tensor(mask,
                                                                           dtype=torch.long), elem.scanner, elem.filepath
