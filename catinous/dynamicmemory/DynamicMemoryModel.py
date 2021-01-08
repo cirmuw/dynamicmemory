@@ -75,6 +75,7 @@ class DynamicMemoryModel(pl.LightningModule):
         if verbose:
             pprint(vars(self.hparams))
 
+
     @staticmethod
     def get_default_hparams():
         hparams = dict()

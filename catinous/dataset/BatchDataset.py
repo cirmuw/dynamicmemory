@@ -218,12 +218,6 @@ class CardiacBatch(BatchDataset):
         self.init(datasetfile, split, iterations, batch_size, res, seed)
         self.outsize = (240, 196)
 
-        self.imgs = []
-        self.masks = []
-        for i, row in self.df.iterrows():
-            img, mask = self.load_image(row)
-            self.imgs.append(img)
-            self.masks.append(mask)
 
     def crop_center_or_pad(self, img, cropx, cropy):
         x, y = img.shape
@@ -240,23 +234,24 @@ class CardiacBatch(BatchDataset):
         return img[startx:startx + cropx, starty:starty + cropy]
 
     def load_image(self, elem):
-        img = sitk.ReadImage(elem.filepath)
-        img = sitk.GetArrayFromImage(img)[elem.t, elem.slice, :, :]
-        img = mut.norm01(img)
+        # img = sitk.ReadImage(elem.filepath)
+        # img = sitk.GetArrayFromImage(img)[elem.t, elem.slice, :, :]
+        # img = mut.norm01(img)
 
-        mask = sitk.ReadImage(elem.filepath[:-7] + '_gt.nii.gz')
-        mask = sitk.GetArrayFromImage(mask)[elem.t, elem.slice, :, :]
+        # mask = sitk.ReadImage(elem.filepath[:-7] + '_gt.nii.gz')
+        # mask = sitk.GetArrayFromImage(mask)[elem.t, elem.slice, :, :]
 
-        if img.shape != self.outsize:
-            img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
-            mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
+        # if img.shape != self.outsize:
+        #    img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
+        #    mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
+
+        img = np.load(elem.slicepath)
+        mask = np.load(elem.slicepath[:-4] + '_gt.npy')
 
         return img[None, :, :], mask
 
     def __getitem__(self, index):
         elem = self.df.iloc[index]
-        #img, mask = self.load_image(elem)
-        img = self.imgs[index]
-        mask = self.masks[index]
+        img, mask = self.load_image(elem)
         return torch.as_tensor(img, dtype=torch.float32), torch.as_tensor(mask,
                                                                           dtype=torch.long), elem.scanner, elem.filepath

@@ -216,6 +216,8 @@ def load_model(modelstr: str):
 
 
 def load_model_stylemodel(modelstr: str):
+    stylemodel = models.resnet50(pretrained=True)
+
     if modelstr == 'resnet':
         model = models.resnet50(pretrained=True)
         model.fc = nn.Sequential(
@@ -223,6 +225,9 @@ def load_model_stylemodel(modelstr: str):
     elif modelstr == 'fcn':
         model = models.segmentation.fcn_resnet50(num_classes=4)
         model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+
+        stylemodel.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+
     elif modelstr == 'rnn':
         num_classes = 3  # 0=background, 1=begnin, 2=malignant
         # load a model pre-trained pre-trained on COCO
@@ -232,7 +237,6 @@ def load_model_stylemodel(modelstr: str):
     else:
         raise NotImplementedError(f'model {modelstr} not implemented')
 
-    stylemodel = models.resnet50(pretrained=True)
     gramlayers = [stylemodel.layer1[-1].conv1,
                   stylemodel.layer2[-1].conv1,
                   stylemodel.layer3[-1].conv1,
