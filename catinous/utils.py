@@ -143,7 +143,7 @@ def get_expname(hparams):
 
 
 def save_cache_to_csv(cache, savepath):
-    df_cache = pd.DataFrame({'filepath':[ci.filepath for ci in cache], 'label': [ci.label.cpu().numpy()[0] for ci in cache], 'res': [ci.res for ci in cache], 'traincounter': [ci.traincounter for ci in cache]})
+    df_cache = pd.DataFrame({'filepath':[ci.filepath for ci in cache], 'scanner': [ci.scanner for ci in cache], 'traincounter': [ci.traincounter for ci in cache]})
     df_cache.to_csv(savepath, index=False, index_label=False)
 
 def gram_matrix(input):
