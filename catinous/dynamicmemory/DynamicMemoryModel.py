@@ -31,7 +31,13 @@ class DynamicMemoryModel(pl.LightningModule):
         self.to(device)
 
         #load model according to hparams
-        self.model, self.gramlayers = utils.load_model(self.hparams.model)
+        if 'stylemodel' in self.hparams:
+            self.model, self.stylemodel, self.gramlayers = utils.load_model_stylemodel(self.hparams.model)
+            self.seperatestyle = True
+        else:
+            self.model, self.gramlayers = utils.load_model(self.hparams.model)
+            self.seperatestyle = False
+
         if not self.hparams.base_model is None:
             self.load_state_dict(torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model), map_location=device))
 
@@ -135,11 +141,12 @@ class DynamicMemoryModel(pl.LightningModule):
                 self.scanner_checkpoints[shift_scanner] = True
             self.freeze()
             #update gram matrices for current memory
-            for mi in self.trainingsmemory:
-                if mi is not None:
-                    self.grammatrices = []
-                    _ = self.forward(mi.img[None, :, :, :].float().to(self.device))
-                    mi.current_grammatrix = [gm[0].cpu() for gm in self.grammatrices]
+            if not self.seperatestyle:
+                for mi in self.trainingsmemory:
+                    if mi is not None:
+                        self.grammatrices = []
+                        _ = self.forward(mi.img[None, :, :, :].float().to(self.device))
+                        mi.current_grammatrix = [gm[0].cpu() for gm in self.grammatrices]
 
             #add new batch to memory
             self.grammatrices = []

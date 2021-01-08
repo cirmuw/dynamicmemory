@@ -215,6 +215,32 @@ def load_model(modelstr: str):
     return model, gramlayers
 
 
+def load_model_stylemodel(modelstr: str):
+    if modelstr == 'resnet':
+        model = models.resnet50(pretrained=True)
+        model.fc = nn.Sequential(
+            *[nn.Linear(2048, 512), nn.BatchNorm1d(512), nn.Linear(512, 1)])
+    elif modelstr == 'fcn':
+        model = models.segmentation.fcn_resnet50(num_classes=4)
+        model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    elif modelstr == 'rnn':
+        num_classes = 3  # 0=background, 1=begnin, 2=malignant
+        # load a model pre-trained pre-trained on COCO
+        model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        in_features = model.roi_heads.box_predictor.cls_score.in_features
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    else:
+        raise NotImplementedError(f'model {modelstr} not implemented')
+
+    stylemodel = models.resnet50(pretrained=True)
+    gramlayers = [stylemodel.layer1[-1].conv1,
+                  stylemodel.layer2[-1].conv1,
+                  stylemodel.layer3[-1].conv1,
+                  stylemodel.layer4[-1].conv1]
+    stylemodel.eval()
+
+    return model, stylemodel, gramlayers
+
 # from https://github.com/moskomule/ewc.pytorch/
 class EWC(object):
     def __init__(self, model: nn.Module, dataset: list):
