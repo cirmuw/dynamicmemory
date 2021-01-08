@@ -151,7 +151,10 @@ class DynamicMemoryModel(pl.LightningModule):
             #add new batch to memory
             self.grammatrices = []
 
-            _ = self.forward(x.float())
+            if self.seperatestyle:
+                _ = self.stylemodel(x.float())
+            else:
+                _ = self.forward(x.float())
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu() for bg in self.grammatrices]
                 mi = MemoryItem(img, y[i], filepath[i], scanner[i], grammatrix)
