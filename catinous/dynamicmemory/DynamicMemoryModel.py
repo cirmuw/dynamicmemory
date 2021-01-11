@@ -230,14 +230,13 @@ class DynamicMemoryModel(pl.LightningModule):
 
                 if self.hparams.task == 'cardiac':
                     y_hat_flat = torch.argmax(y_hat['out'], dim=1).detach().cpu().numpy()
-                    y = y.detach().cpu().numpy()
+                    y_det = y.detach().cpu().numpy()
                     for i, m in enumerate(y):
-                        forcemetrics.append(mut.dice(y[i], y_hat_flat[i], classi=1))
+                        forcemetrics.append(mut.dice(y_det[i], y_hat_flat[i], classi=1))
 
             forcedelements = []
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu() for bg in self.grammatrices]
-                print(y[i], 'what is it??')
                 mi = MemoryItem(img, y[i], filepath[i], scanner[i], grammatrix)
                 self.trainingsmemory.insert_element(mi)
                 if self.forcemisclassified:
