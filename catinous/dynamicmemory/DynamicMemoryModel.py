@@ -237,6 +237,7 @@ class DynamicMemoryModel(pl.LightningModule):
             forcedelements = []
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu() for bg in self.grammatrices]
+                print(y[i], 'what is it??')
                 mi = MemoryItem(img, y[i], filepath[i], scanner[i], grammatrix)
                 self.trainingsmemory.insert_element(mi)
                 if self.forcemisclassified:

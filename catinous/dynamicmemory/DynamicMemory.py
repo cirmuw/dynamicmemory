@@ -7,7 +7,7 @@ class MemoryItem():
 
     def __init__(self, img, target, filepath, scanner, current_grammatrix=None, pseudo_domain=None):
         self.img = img.detach().cpu()
-        self.target = target
+        self.target = target.detach().cpu()
         self.filepath = filepath
         self.scanner = scanner
         self.traincounter = 0
