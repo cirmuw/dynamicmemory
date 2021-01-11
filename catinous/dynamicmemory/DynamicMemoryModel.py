@@ -43,9 +43,13 @@ class DynamicMemoryModel(pl.LightningModule):
 
         if 'force_misclassified' in self.hparams:
             self.forcemisclassified = True
+        else:
+            self.forcemisclassified = False
 
         if 'pseudodomain_detction' in self.hparams:
             self.pseudo_detection = True
+        else:
+            self.pseudo_detection = False
 
         if not self.hparams.base_model is None:
             state_dict = torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model))
