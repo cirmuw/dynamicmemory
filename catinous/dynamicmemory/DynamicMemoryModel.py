@@ -15,6 +15,9 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 import numpy as np
 
+from sklearn.ensemble import IsolationForest
+from sklearn.random_projection import SparseRandomProjection
+
 from catinous.dataset.ContinuousDataset import *
 from catinous.dataset.BatchDataset import *
 from catinous import utils
@@ -40,6 +43,9 @@ class DynamicMemoryModel(pl.LightningModule):
 
         if 'force_misclassified' in self.hparams:
             self.forcemisclassified = True
+
+        if 'pseudodomain_detction' in self.hparams:
+            self.pseudo_detection = True
 
         if not self.hparams.base_model is None:
             state_dict = torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model))
@@ -107,13 +113,62 @@ class DynamicMemoryModel(pl.LightningModule):
         if self.hparams.gram_weights is None:
             self.hparams.gram_weights = [1] * len(self.gramlayers)
 
-        self.trainingsmemory = DynamicMemory(memorymaximum=self.hparams.memorymaximum, balance_memory=self.hparams.balance_memory, gram_weights=self.hparams.gram_weights)
         self.grammatrices = []
 
         for layer in self.gramlayers:
             layer.register_forward_hook(self.gram_hook)
 
+        if self.pseudo_detection:
+            base_if, base_transformer = self.get_base_domainclf()
+        else:
+            base_if = None
+            base_transformer = None
+
+        self.trainingsmemory = DynamicMemory(memorymaximum=self.hparams.memorymaximum,
+                                                 balance_memory=self.hparams.balance_memory,
+                                                 gram_weights=self.hparams.gram_weights,
+                                                base_if=base_if,
+                                             base_transformer=base_transformer)
+
         logging.info('Gram hooks and cache initialized. Memory size: %i' % self.hparams.memorymaximum)
+
+    def get_base_domainclf(self):
+        self.freeze()
+        if self.hparams.task == 'cardiac':
+            dl = DataLoader(CardiacBatch(self.hparams.datasetfile,
+                                    iterations=self.hparams.noncontinuous_steps,
+                                    batch_size=self.hparams.batch_size,
+                                    split=['base'],
+                                    res=self.hparams.scanner),
+                       batch_size=self.hparams.batch_size, num_workers=8)
+
+        base_grams = []
+        for batch in dl:
+            self.grammatrices = []
+            torch.cuda.empty_cache()
+
+            images, targets, scanner, filepath = batch
+
+            x = images.to(self.device)
+            if self.seperatestyle:
+                _ = self.stylemodel(x)
+            else:
+                _ = self.forward(x)
+
+            for i, img in enumerate(x):
+                grammatrix = [bg[i].cpu().detach().numpy().flatten() for bg in self.grammatrices]
+                base_grams.append(grammatrix)
+
+            self.grammatrices = []
+
+        transformer = SparseRandomProjection(random_state=self.hparams.seed, n_components=30)
+        transformer.fit(base_grams)
+        trans_initelements = transformer.transform(base_grams)
+
+        clf = IsolationForest(n_estimators=10, random_state=self.hparams.seed).fit(trans_initelements)
+        self.unfreeze()
+
+        return clf, transformer
 
     def gram_hook(self, m, input, output):
         if self.hparams.dim == 2:
@@ -170,7 +225,7 @@ class DynamicMemoryModel(pl.LightningModule):
                 forcemetrics = []
 
                 if self.hparams.task == 'cardiac':
-                    y_hat_flat = torch.argmax(y_hat, dim=1).detach().cpu().numpy()
+                    y_hat_flat = torch.argmax(y_hat['out'], dim=1).detach().cpu().numpy()
                     y = y.detach().cpu().numpy()
                     for i, m in enumerate(y):
                         forcemetrics.append(mut.dice(y[i], y_hat_flat[i], classi=1))
@@ -183,6 +238,7 @@ class DynamicMemoryModel(pl.LightningModule):
                 if self.forcemisclassified:
                     if forcemetrics[i]<self.hparams.misclass_threshold:
                         forcedelements.append(mi)
+            print(len(forcedelements), 'forcedelements')
 
             self.unfreeze()
 

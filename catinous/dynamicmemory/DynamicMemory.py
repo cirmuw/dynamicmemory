@@ -5,17 +5,19 @@ import torch.nn.functional as F
 
 class MemoryItem():
 
-    def __init__(self, img, target, filepath, scanner, current_grammatrix=None):
+    def __init__(self, img, target, filepath, scanner, current_grammatrix=None, pseudo_domain=None):
         self.img = img.detach().cpu()
         self.target = target.detach().cpu()
         self.filepath = filepath
         self.scanner = scanner
         self.traincounter = 0
+        self.outlier_counter = 0
         self.current_grammatrix = current_grammatrix
+        self.pseudo_domain = pseudo_domain
 
 class DynamicMemory():
 
-    def __init__(self, memorymaximum=256, balance_memory=True, gram_weights=None):
+    def __init__(self, memorymaximum=256, balance_memory=True, gram_weights=None, base_transformer=None, base_if=None):
         self.memoryfull = False
         self.memorylist = []
         self.memorymaximum = memorymaximum
@@ -23,7 +25,15 @@ class DynamicMemory():
 
         #this is for balancing in the binary classification case...
         self.balance_memory = balance_memory
-        self.classcounter = {0: 0, 1: 0}
+
+        if base_if is not None:
+            self.transformer = base_transformer
+            self.isoforest = {0: base_if}
+            self.pseudodomaincounter = {0: 0, 1: 0}
+            self.outlier_memory = []
+            self.outlier_epochs = 10
+        else:
+            self.transformer = None
 
     def insert_element(self, item):
         if not self.memoryfull:
@@ -79,6 +89,12 @@ class DynamicMemory():
                 j += 1
 
         return x, y
+
+    def counter_outlier_memory(self):
+        for item in self.outlier_memory:
+            item.outlier_counter += 1
+            if item.outlier_counter > self.outlier_epochs:
+                self.outlier_memory.remove(item)
 
     def __iter__(self):
         return self.memorylist.__iter__()
