@@ -20,7 +20,7 @@ import pydicom as pyd
 
 LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
 TRAINED_MODELS_FOLDER = '/project/catinous/trained_models/'
-TRAINED_CACHE_FOLDER = '/project/catinous/trained_cache/'
+TRAINED_MEMORY_FOLDER = '/project/catinous/trained_cache/'
 RESPATH = '/project/catinous/results/'
 
 def sort_dict(input_dict):
@@ -187,7 +187,7 @@ def load_model(modelstr: str):
                       model.layer3[-1].conv1,
                      model.layer4[-1].conv1]
     elif modelstr == 'fcn':
-        model = models.segmentation.fcn_resnet50(num_classes=4)
+        model = models.segmentation.fcn_resnet50(num_classes=4, progress=False)
         model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
         gramlayers = [
@@ -199,7 +199,7 @@ def load_model(modelstr: str):
     elif modelstr == 'rnn':
         num_classes = 3  # 0=background, 1=begnin, 2=malignant
         # load a model pre-trained pre-trained on COCO
-        model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True, progress=False)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 

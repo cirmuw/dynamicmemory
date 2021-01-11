@@ -38,6 +38,9 @@ class DynamicMemoryModel(pl.LightningModule):
             self.model, self.gramlayers = utils.load_model(self.hparams.model)
             self.seperatestyle = False
 
+        if 'force_misclassified' in self.hparams:
+            self.forcemisclassified = True
+
         if not self.hparams.base_model is None:
             state_dict = torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model))
             new_state_dict = {}
@@ -158,16 +161,32 @@ class DynamicMemoryModel(pl.LightningModule):
 
             if self.seperatestyle:
                 _ = self.stylemodel(x.float())
+                if self.forcemisclassified:
+                    y_hat = self.forward(x.float())
             else:
-                _ = self.forward(x.float())
+                y_hat = self.forward(x.float())
+
+            if self.forcemisclassified:
+                forcemetrics = []
+
+                if self.hparams.task == 'cardiac':
+                    y_hat_flat = torch.argmax(y_hat, dim=1).detach().cpu().numpy()
+                    y = y.detach().cpu().numpy()
+                    for i, m in enumerate(y):
+                        forcemetrics.append(mut.dice(y[i], y_hat_flat[i], classi=1))
+
+            forcedelements = []
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu() for bg in self.grammatrices]
                 mi = MemoryItem(img, y[i], filepath[i], scanner[i], grammatrix)
                 self.trainingsmemory.insert_element(mi)
+                if self.forcemisclassified:
+                    if forcemetrics[i]<self.hparams.misclass_threshold:
+                        forcedelements.append(mi)
 
             self.unfreeze()
 
-            x, y = self.trainingsmemory.get_training_batch(self.hparams.batch_size, self.hparams.random_memory)
+            x, y = self.trainingsmemory.get_training_batch(self.hparams.batch_size, self.hparams.random_memory, forceditems=forcedelements)
 
             if self.hparams.task=='lidc':
                 x = list(i.to(self.device) for i in x)
@@ -415,6 +434,7 @@ def trained_model(hparams, show_progress = False):
     model = DynamicMemoryModel(hparams=hparams, device=device)
     exp_name = utils.get_expname(model.hparams)
     weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
+    print(weights_path)
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
         logger = utils.pllogger(model.hparams)
         trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
@@ -441,12 +461,14 @@ def trained_model(hparams, show_progress = False):
 
 
 def is_cached(hparams):
-    model = DynamicMemoryModel(hparams=hparams)
-    exp_name = utils.get_expname(model.hparams)
+    #model = DynamicMemoryModel(hparams=hparams)
+    hparams = utils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
+    exp_name = utils.get_expname(hparams)
     return os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt')
 
 
 def cached_path(hparams):
-    model = DynamicMemoryModel(hparams=hparams)
-    exp_name = utils.get_expname(model.hparams)
+    #model = DynamicMemoryModel(hparams=hparams)
+    hparams = utils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
+    exp_name = utils.get_expname(hparams)
     return utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'
