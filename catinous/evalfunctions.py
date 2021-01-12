@@ -9,7 +9,7 @@ def eval_cardiac(hparams, outfile):
     device = torch.device('cuda')
 
     dl_test = DataLoader(CardiacBatch(hparams['datasetfile'], split=['test']), batch_size=16)
-    model, _, _, _ = dmodel.trained_model(hparams)
+    model, _, _, _ = dmodel.trained_model(hparams, training=False)
     model.to(device)
     model.eval()
 

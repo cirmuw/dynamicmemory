@@ -37,6 +37,7 @@ class DynamicMemoryModel(pl.LightningModule):
         #load model according to hparams
         if 'stylemodel' in self.hparams:
             self.model, self.stylemodel, self.gramlayers = utils.load_model_stylemodel(self.hparams.model)
+            self.stylemodel.to(device)
             self.seperatestyle = True
         else:
             self.model, self.gramlayers = utils.load_model(self.hparams.model)
@@ -139,6 +140,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
     def get_base_domainclf(self):
         self.freeze()
+
         if self.hparams.task == 'cardiac':
             dl = DataLoader(CardiacBatch(self.hparams.datasetfile,
                                     iterations=self.hparams.noncontinuous_steps,
@@ -515,7 +517,7 @@ def trained_model(hparams, training=True):
             model = None
     else:
         print('Read: ' + weights_path)
-        model.load_state_dict(torch.load(weights_path))
+        model.load_state_dict(torch.load(weights_path, map_location=device))
         model.freeze()
 
     if model.hparams.continuous and model.hparams.use_memory:
