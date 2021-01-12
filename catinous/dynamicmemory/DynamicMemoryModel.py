@@ -14,6 +14,7 @@ import torchvision.models as models
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 import numpy as np
+from py_jotools import augmentation, mut
 
 from sklearn.ensemble import IsolationForest
 from sklearn.random_projection import SparseRandomProjection
@@ -507,7 +508,7 @@ def trained_model(hparams, show_progress = False):
             utils.save_cache_to_csv(model.trainingsmemory.memorylist, utils.TRAINED_MEMORY_FOLDER + exp_name + '.csv')
     else:
         print('Read: ' + weights_path)
-        model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(weights_path))
         model.freeze()
 
     if model.hparams.continuous and model.hparams.use_memory:
