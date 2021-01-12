@@ -13,13 +13,13 @@ def eval_cardiac(hparams, outfile):
     model.to(device)
     model.eval()
 
+    scanners = []
+    dice_1 = []
+    dice_2 = []
+    dice_3 = []
+
     for batch in dl_test:
         x, y, scanner, _ = batch
-
-        scanners = []
-        dice_1 = []
-        dice_2 = []
-        dice_3 = []
         x = x.to(device)
         y_hat = model.forward(x)['out']
         y_hat_flat = torch.argmax(y_hat, dim=1).detach().cpu().numpy()
