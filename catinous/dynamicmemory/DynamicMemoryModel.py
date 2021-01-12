@@ -47,7 +47,7 @@ class DynamicMemoryModel(pl.LightningModule):
         else:
             self.forcemisclassified = False
 
-        if 'pseudodomain_detction' in self.hparams:
+        if 'pseudodomain_detection' in self.hparams:
             self.pseudo_detection = True
         else:
             self.pseudo_detection = False

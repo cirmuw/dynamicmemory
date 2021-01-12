@@ -51,7 +51,7 @@ class DynamicMemory():
             domain = self.check_pseudodomain(item.current_grammatrix)
             item.pseudo_domain = domain
 
-        if domain == -1:
+        if self.pseudo_detection and domain == -1:
             # insert into outlier memory
             # check outlier memory for new clusters
             self.outlier_memory.append(item)
