@@ -144,7 +144,7 @@ class DynamicMemoryModel(pl.LightningModule):
                                     iterations=self.hparams.noncontinuous_steps,
                                     batch_size=self.hparams.batch_size,
                                     split=['base'],
-                                    res=self.hparams.scanner),
+                                    res=self.hparams.order[0]),
                        batch_size=self.hparams.batch_size, num_workers=8)
 
         base_grams = []
