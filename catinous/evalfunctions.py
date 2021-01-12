@@ -6,7 +6,7 @@ from py_jotools import augmentation, mut
 import pandas as pd
 
 def eval_cardiac(hparams, outfile):
-    device = torch.device()
+    device = torch.device('cuda')
 
     dl_test = DataLoader(CardiacBatch(hparams['datasetfile'], split=['test']), batch_size=16)
     model, _, _, _ = dmodel.trained_model(hparams)
