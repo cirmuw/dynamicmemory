@@ -245,6 +245,10 @@ class DynamicMemoryModel(pl.LightningModule):
                         forcedelements.append(mi)
             print(len(forcedelements), 'forcedelements')
 
+            if self.pseudo_detection:
+                self.trainingsmemory.check_outlier_memory(self)
+                self.trainingsmemory.counter_outlier_memory()
+
             self.unfreeze()
 
             x, y = self.trainingsmemory.get_training_batch(self.hparams.batch_size, self.hparams.random_memory, forceditems=forcedelements)
@@ -486,7 +490,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
                 self.log(f'val_ap_{scanner}', aps[scanner])
 
-def trained_model(hparams, show_progress = False):
+def trained_model(hparams, training=True):
     df_cache = None
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -497,22 +501,28 @@ def trained_model(hparams, show_progress = False):
     weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
     print(weights_path)
     if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
-        logger = utils.pllogger(model.hparams)
-        trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
-                          val_check_interval=model.hparams.val_check_interval,
-                          checkpoint_callback=False)
-        trainer.fit(model)
-        model.freeze()
-        torch.save(model.state_dict(), weights_path)
-        if model.hparams.continuous and model.hparams.use_memory:
-            utils.save_cache_to_csv(model.trainingsmemory.memorylist, utils.TRAINED_MEMORY_FOLDER + exp_name + '.csv')
+        if training:
+            logger = utils.pllogger(model.hparams)
+            trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
+                              val_check_interval=model.hparams.val_check_interval,
+                              checkpoint_callback=False)
+            trainer.fit(model)
+            model.freeze()
+            torch.save(model.state_dict(), weights_path)
+            if model.hparams.continuous and model.hparams.use_memory:
+                utils.save_cache_to_csv(model.trainingsmemory.memorylist, utils.TRAINED_MEMORY_FOLDER + exp_name + '.csv')
+        else:
+            model = None
     else:
         print('Read: ' + weights_path)
         model.load_state_dict(torch.load(weights_path))
         model.freeze()
 
     if model.hparams.continuous and model.hparams.use_memory:
-        df_cache = pd.read_csv(utils.TRAINED_MEMORY_FOLDER + exp_name + '.csv')
+        if os.path.exists(utils.TRAINED_MEMORY_FOLDER + exp_name + '.csv'):
+            df_cache = pd.read_csv(utils.TRAINED_MEMORY_FOLDER + exp_name + '.csv')
+        else:
+            df_cache = None
 
     # always get the last version
     max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
