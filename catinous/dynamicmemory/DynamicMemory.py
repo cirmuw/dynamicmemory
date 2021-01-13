@@ -23,7 +23,7 @@ class MemoryItem():
 
 class DynamicMemory():
 
-    def __init__(self, memorymaximum=256, balance_memory=True, gram_weights=None, base_transformer=None, base_if=None):
+    def __init__(self, memorymaximum=256, balance_memory=True, gram_weights=None, base_transformer=None, base_if=None, seed=None):
         self.memoryfull = False
         self.memorylist = []
         self.memorymaximum = memorymaximum
@@ -41,6 +41,8 @@ class DynamicMemory():
             self.pseudo_detection = True
         else:
             self.transformer = None
+
+        self.seed = seed
 
     def insert_element(self, item):
         domain = -1

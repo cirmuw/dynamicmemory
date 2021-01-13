@@ -134,7 +134,8 @@ class DynamicMemoryModel(pl.LightningModule):
                                                  balance_memory=self.hparams.balance_memory,
                                                  gram_weights=self.hparams.gram_weights,
                                                 base_if=base_if,
-                                             base_transformer=base_transformer)
+                                             base_transformer=base_transformer,
+                                             seed=self.hparams.seed)
 
         logging.info('Gram hooks and cache initialized. Memory size: %i' % self.hparams.memorymaximum)
 
