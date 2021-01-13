@@ -143,14 +143,13 @@ class DynamicMemoryModel(pl.LightningModule):
 
         if self.hparams.task == 'cardiac':
             dl = DataLoader(CardiacBatch(self.hparams.datasetfile,
-                                    iterations=self.hparams.noncontinuous_steps,
-                                    batch_size=self.hparams.batch_size,
                                     split=['base'],
                                     res=self.hparams.order[0]),
-                       batch_size=self.hparams.batch_size, num_workers=8)
+                       batch_size=8, num_workers=8, drop_last=True)
 
         base_grams = []
-        for batch in dl:
+        print('in base domain clf')
+        for j, batch in enumerate(dl):
             self.grammatrices = []
             torch.cuda.empty_cache()
 
@@ -164,17 +163,19 @@ class DynamicMemoryModel(pl.LightningModule):
 
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu().detach().numpy().flatten() for bg in self.grammatrices]
-                base_grams.append(grammatrix)
+                base_grams.append(np.hstack(grammatrix))
 
             self.grammatrices = []
 
+
+        print(base_grams[0].shape)
         transformer = SparseRandomProjection(random_state=self.hparams.seed, n_components=30)
         transformer.fit(base_grams)
         trans_initelements = transformer.transform(base_grams)
 
         clf = IsolationForest(n_estimators=10, random_state=self.hparams.seed).fit(trans_initelements)
         self.unfreeze()
-
+        print('finished base domain clf')
         return clf, transformer
 
     def gram_hook(self, m, input, output):

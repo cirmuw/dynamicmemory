@@ -238,9 +238,9 @@ def load_model_stylemodel(modelstr: str):
         raise NotImplementedError(f'model {modelstr} not implemented')
 
     gramlayers = [stylemodel.layer1[-1].conv1,
-                  stylemodel.layer2[-1].conv1,
-                  stylemodel.layer3[-1].conv1,
-                  stylemodel.layer4[-1].conv1]
+                  stylemodel.layer2[-1].conv1]
+                  #stylemodel.layer3[-1].conv1,
+                  #stylemodel.layer4[-1].conv1]
     stylemodel.eval()
 
     return model, stylemodel, gramlayers
