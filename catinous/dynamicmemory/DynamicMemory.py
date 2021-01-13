@@ -45,7 +45,7 @@ class DynamicMemory():
     def insert_element(self, item):
         domain = -1
         if self.transformer is not None:
-            item.current_grammatrix = np.hstack(item.current_grammatrix)
+            item.current_grammatrix = np.hstack([gm.flatten() for gm in item.current_grammatrix])
             item.current_grammatrix = self.transformer.transform(item.current_grammatrix.reshape(1, -1))
             item.current_grammatrix = item.current_grammatrix[0] #TODO: debug this!
 

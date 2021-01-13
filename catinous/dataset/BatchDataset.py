@@ -218,6 +218,8 @@ class CardiacBatch(BatchDataset):
         self.init(datasetfile, split, iterations, batch_size, res, seed)
         self.outsize = (240, 196)
 
+        print('init cardiac batch with datasetfile', datasetfile)
+
 
     def crop_center_or_pad(self, img, cropx, cropy):
         x, y = img.shape
