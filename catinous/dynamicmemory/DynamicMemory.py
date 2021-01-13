@@ -86,7 +86,7 @@ class DynamicMemory():
         return -1
 
     def flag_items_for_deletion(self):
-        for k, v in self.domaincomplete.items():
+        for k, v in self.isoforests.items():
             domain_count = len(self.get_domainitems(k))
             if domain_count > self.max_per_domain:
                 todelete = domain_count - self.max_per_domain
