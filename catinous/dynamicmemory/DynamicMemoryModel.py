@@ -247,7 +247,6 @@ class DynamicMemoryModel(pl.LightningModule):
                 if self.forcemisclassified:
                     if forcemetrics[i]<self.hparams.misclass_threshold:
                         forcedelements.append(mi)
-            print(len(forcedelements), 'forcedelements')
 
             if self.pseudo_detection:
                 self.trainingsmemory.check_outlier_memory(self)

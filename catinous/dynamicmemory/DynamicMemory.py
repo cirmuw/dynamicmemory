@@ -19,7 +19,7 @@ class MemoryItem():
         self.outlier_counter = 0
         self.current_grammatrix = current_grammatrix
         self.pseudo_domain = pseudo_domain
-
+        self.deleteflag = False
 
 class DynamicMemory():
 
@@ -39,6 +39,7 @@ class DynamicMemory():
             self.outlier_epochs = 10
             self.max_per_domain = memorymaximum
             self.pseudo_detection = True
+            self.domaincounter = {0: 0}
         else:
             self.transformer = None
 
@@ -58,26 +59,27 @@ class DynamicMemory():
             # insert into outlier memory
             # check outlier memory for new clusters
             self.outlier_memory.append(item)
+        if not self.memoryfull:
+            self.memorylist.append(item)
+            if len(self.memorylist) == self.memorymaximum:
+                self.memoryfull = True
         else:
-            if not self.memoryfull:
-                self.memorylist.append(item)
-                if len(self.memorylist) == self.memorymaximum:
-                    self.memoryfull = True
-            else:
-                assert(item.current_grammatrix is not None)
-                insertidx = -1
-                mingramloss = 1000
-                for j, ci in enumerate(self.memorylist):
-                    if self.pseudo_detection and ci.pseudo_domain==domain:
-                        l_sum = 0.0
-                        for i in range(len(item.current_grammatrix)):
-                            l_sum += self.gram_weights[i] * F.mse_loss(
-                                item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
+            assert(item.current_grammatrix is not None)
+            insertidx = -1
+            mingramloss = 1000
+            for j, ci in enumerate(self.memorylist):
+                l_sum = 0.0
+                if self.pseudo_detection and ci.pseudo_domain==domain:
+                    l_sum = F.mse_loss(torch.tensor(item.current_grammatrix), torch.tensor(ci.current_grammatrix), reduction='mean')
+                elif not self.pseudo_detection:
+                    for i in range(len(item.current_grammatrix)):
+                        l_sum += self.gram_weights[i] * F.mse_loss(
+                            item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
 
-                        if l_sum < mingramloss:
-                            mingramloss = l_sum
-                            insertidx = j
-                self.memorylist[insertidx] = item
+                if l_sum < mingramloss:
+                    mingramloss = l_sum
+                    insertidx = j
+            self.memorylist[insertidx] = item
 
     def find_insert_position(self):
         for idx, item in enumerate(self.memorylist):
@@ -98,6 +100,14 @@ class DynamicMemory():
 
                             todelete -= 1
 
+
+    def get_domainitems(self, domain):
+        items = []
+        for mi in self.memorylist:
+            if mi.pseudo_domain == domain:
+                items.append(mi)
+        return items
+
     def check_outlier_memory(self, model):
         if len(self.outlier_memory)>5:
             outlier_grams = [o.current_grammatrix for o in self.outlier_memory]
@@ -110,7 +120,9 @@ class DynamicMemory():
                     outlier_grams)
 
                 new_domain_label = len(self.isoforests)
+                print(self.isoforests, new_domain_label)
                 self.max_per_domain = int(self.memorymaximum/(new_domain_label+1))
+                self.domaincounter= 0
 
                 self.flag_items_for_deletion()
 
@@ -122,19 +134,19 @@ class DynamicMemory():
                                 elem = self.outlier_memory[k]
                                 elem.pseudo_domain = new_domain_label
                                 self.memorylist[idx] = elem
-                                self.domaincounter[new_domain_label] += 1
+                                self.domaincounter += 1
                                 to_delete.append(self.outlier_memory[k])
-                                self.labeling_counter += 1
-                                detection, wrong_detection = model.check_detection(elem.img, elem.target)
-                                self.domainPerf[new_domain_label].append(detection)
-                                self.domainPerf_wrong[new_domain_label].append(wrong_detection)
+                                #detection, wrong_detection = model.check_detection(elem.img, elem.target)
+                                #self.domainPerf[new_domain_label].append(detection)
+                                #self.domainPerf_wrong[new_domain_label].append(wrong_detection)
                 for elem in to_delete:
                     self.outlier_memory.remove(elem)
 
-                self.isoforests[new_domain_label] = clf
+                if self.domaincounter>0:
+                    self.isoforests[new_domain_label] = clf
 
-                for elem in self.get_domainitems(new_domain_label):
-                    print('found new domain', new_domain_label, elem.scanner)
+                    for elem in self.get_domainitems(new_domain_label):
+                        print('found new domain', new_domain_label, elem.scanner)
 
 
     def check_pseudodomain(self, grammatrix):
