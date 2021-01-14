@@ -42,6 +42,7 @@ class DynamicMemory():
             self.domaincounter = {0: 0}
         else:
             self.transformer = None
+            self.pseudo_detection = False
 
         self.seed = seed
 
