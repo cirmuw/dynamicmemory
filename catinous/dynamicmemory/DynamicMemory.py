@@ -67,19 +67,23 @@ class DynamicMemory():
         else:
             assert(item.current_grammatrix is not None)
             insertidx = -1
-            mingramloss = 1000
-            for j, ci in enumerate(self.memorylist):
-                l_sum = 0.0
-                if self.pseudo_detection and ci.pseudo_domain==domain:
-                    l_sum = F.mse_loss(torch.tensor(item.current_grammatrix), torch.tensor(ci.current_grammatrix), reduction='mean')
-                elif not self.pseudo_detection:
-                    for i in range(len(item.current_grammatrix)):
-                        l_sum += self.gram_weights[i] * F.mse_loss(
-                            item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
+            if self.pseudo_detection:
+                insertidx = self.find_insert_position()
 
-                if l_sum < mingramloss:
-                    mingramloss = l_sum
-                    insertidx = j
+            if insertidx==-1:
+                mingramloss = 1000
+                for j, ci in enumerate(self.memorylist):
+                    l_sum = 0.0
+                    if self.pseudo_detection and ci.pseudo_domain==domain:
+                        l_sum = F.mse_loss(torch.tensor(item.current_grammatrix), torch.tensor(ci.current_grammatrix), reduction='mean')
+                    elif not self.pseudo_detection:
+                        for i in range(len(item.current_grammatrix)):
+                            l_sum += self.gram_weights[i] * F.mse_loss(
+                                item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
+
+                    if l_sum < mingramloss:
+                        mingramloss = l_sum
+                        insertidx = j
             self.memorylist[insertidx] = item
 
     def find_insert_position(self):
