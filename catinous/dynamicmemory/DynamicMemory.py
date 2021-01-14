@@ -197,6 +197,55 @@ class DynamicMemory():
 
         return x, y
 
+    def get_training_batches(self, batchsize, batches=2, randombatch=False, forceditems=None):
+        batchsize = min(batchsize, len(self.memorylist))
+
+        xs = []
+        ys = []
+
+        if forceditems is not None:
+            force_per_batch = len(forceditems)/batches
+
+        for b in range(batches):
+            bs = batchsize
+            if forceditems is not None:
+                forcedbatchitems = forceditems[b*force_per_batch:(b+1)*force_per_batch]
+            else:
+                forcedbatchitems = None
+
+            imgshape = self.memorylist[0].img.shape
+
+            x = torch.empty(size=(batchsize, imgshape[0], imgshape[1], imgshape[2]))
+
+            y = list()
+
+            j = 0
+
+            if forcedbatchitems is not None:
+                for ci in forcedbatchitems:
+                    x[j] = ci.img
+                    y.append(ci.target)
+                    ci.traincounter += 1
+                    j += 1
+
+                bs -= j
+
+            if randombatch:
+                random.shuffle(self.memorylist)
+
+            if bs>0:
+                for ci in self.memorylist[-bs:]:
+                    x[j] = ci.img
+                    y.append(ci.target)
+                    ci.traincounter += 1
+                    j += 1
+
+            xs.append(x)
+            ys.append(y)
+
+        return xs, ys
+
+
     def counter_outlier_memory(self):
         for item in self.outlier_memory:
             item.outlier_counter += 1

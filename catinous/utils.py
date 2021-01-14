@@ -120,7 +120,7 @@ def get_expname(hparams):
             hparams.pop('EWC_bn_off')
 
     if 'gram_weights' in hparams:
-        if hparams['gram_weights'] == [1, 1, 1, 1]:
+        if hparams['gram_weights'] == [1, 1, 1, 1] or hparams['gram_weights'] is None:
             hparams.pop('gram_weights')
 
     hashed_params = hash(hparams, length=10)

@@ -500,10 +500,13 @@ def trained_model(hparams, training=True):
     else:
         device = torch.device('cpu')
     model = DynamicMemoryModel(hparams=hparams, device=device)
-    exp_name = utils.get_expname(model.hparams)
-    weights_path = utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
-    print(weights_path)
-    if not os.path.exists(utils.TRAINED_MODELS_FOLDER + exp_name + '.pt'):
+    hparams = utils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
+    exp_name = utils.get_expname(hparams)
+    print(exp_name)
+    weights_path = cached_path(hparams)#utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
+    print('Read: ' + weights_path)
+
+    if not os.path.exists(weights_path):
         if training:
             logger = utils.pllogger(model.hparams)
             trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
@@ -517,8 +520,8 @@ def trained_model(hparams, training=True):
         else:
             model = None
     else:
-        print('Read: ' + weights_path)
-        model.load_state_dict(torch.load(weights_path, map_location=device))
+        print('Read: ' + cached_path(hparams))
+        model.load_state_dict(torch.load(cached_path(hparams), map_location=device))
         model.freeze()
 
     if model.hparams.continuous and model.hparams.use_memory:
