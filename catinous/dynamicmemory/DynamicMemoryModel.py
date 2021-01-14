@@ -251,6 +251,12 @@ class DynamicMemoryModel(pl.LightningModule):
             if self.pseudo_detection:
                 self.trainingsmemory.check_outlier_memory(self)
                 self.trainingsmemory.counter_outlier_memory()
+                for i in range(len(self.trainingsmemory.isoforests)):
+                    domainitems = self.trainingsmemory.get_domainitems(i)
+                    counts = {'Siemens': 0, 'GE': 0, 'Philips':0, 'Canon': 0}
+                    for mi in domainitems:
+                        counts[mi.scanner] += 1
+                    print('domain', i, len(domainitems), counts)
 
             self.unfreeze()
 

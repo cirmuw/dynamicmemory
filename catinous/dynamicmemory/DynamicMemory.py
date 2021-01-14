@@ -73,18 +73,23 @@ class DynamicMemory():
             if insertidx==-1:
                 mingramloss = 1000
                 for j, ci in enumerate(self.memorylist):
-                    l_sum = 0.0
+                    l_sum = 10000
                     if self.pseudo_detection and ci.pseudo_domain==domain:
-                        l_sum = F.mse_loss(torch.tensor(item.current_grammatrix), torch.tensor(ci.current_grammatrix), reduction='mean')
+                        l_sum = F.mse_loss(torch.tensor(item.current_grammatrix), torch.tensor(ci.current_grammatrix), reduction='sum')
                     elif not self.pseudo_detection:
+                        l_sum = 0.0
                         for i in range(len(item.current_grammatrix)):
                             l_sum += self.gram_weights[i] * F.mse_loss(
                                 item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
 
                     if l_sum < mingramloss:
-                        mingramloss = l_sum
+                        mingramloss = l_sum.item()
                         insertidx = j
-            self.memorylist[insertidx] = item
+
+            if insertidx!=-1:
+                self.memorylist[insertidx] = item
+            else:
+                print('insertidx still -1')
 
     def find_insert_position(self):
         for idx, item in enumerate(self.memorylist):
@@ -93,8 +98,11 @@ class DynamicMemory():
         return -1
 
     def flag_items_for_deletion(self):
+        #print(len(self.isoforests), 'domain', self.memorymaximum, self.max_per_domain)
+
         for k, v in self.isoforests.items():
             domain_count = len(self.get_domainitems(k))
+            print('domain', k, domain_count)
             if domain_count > self.max_per_domain:
                 todelete = domain_count - self.max_per_domain
                 for item in self.memorylist:
@@ -104,6 +112,9 @@ class DynamicMemory():
                                 item.deleteflag = True
 
                             todelete -= 1
+        #for mi in self.memorylist:
+        #    print('after updating for deletion')
+        #    print(mi.pseudo_domain, mi.deleteflag)
 
 
     def get_domainitems(self, domain):

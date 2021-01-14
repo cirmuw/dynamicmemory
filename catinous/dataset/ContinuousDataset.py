@@ -193,4 +193,4 @@ class CardiacContinuous(ContinuousDataset):
         elem = self.df.iloc[index]
         img, mask = self.load_image(elem)
         return torch.as_tensor(img, dtype=torch.float32), torch.as_tensor(mask,
-                                                                          dtype=torch.long), elem.scanner, elem.filepath
+                                                                          dtype=torch.long), elem.scanner, elem.slicepath
