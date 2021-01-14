@@ -17,6 +17,7 @@ def eval_cardiac(hparams, outfile):
     dice_1 = []
     dice_2 = []
     dice_3 = []
+    shifts = []
 
     for batch in dl_test:
         x, y, scanner, _ = batch
@@ -30,8 +31,31 @@ def eval_cardiac(hparams, outfile):
             dice_1.append(mut.dice(y[i], y_hat_flat[i], classi=1))
             dice_2.append(mut.dice(y[i], y_hat_flat[i], classi=2))
             dice_3.append(mut.dice(y[i], y_hat_flat[i], classi=3))
+            shifts.append('None')
 
-    df_results = pd.DataFrame({'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3})
+    modelpath = dmodel.cached_path(hparams)
+    shifts = ['Canon', 'GE', 'Philips']
+    for s in shifts:
+        shiftmodelpath = f'{modelpath[:-3]}_shift_{s}.pt'
+        model.load_state_dict(torch.load(shiftmodelpath, map_location=device))
+        model.freeze()
+
+        for batch in dl_test:
+            x, y, scanner, _ = batch
+            x = x.to(device)
+            y_hat = model.forward(x)['out']
+            y_hat_flat = torch.argmax(y_hat, dim=1).detach().cpu().numpy()
+            y = y.detach().cpu().numpy()
+
+            for i, m in enumerate(y):
+                scanners.append(scanner[i])
+                dice_1.append(mut.dice(y[i], y_hat_flat[i], classi=1))
+                dice_2.append(mut.dice(y[i], y_hat_flat[i], classi=2))
+                dice_3.append(mut.dice(y[i], y_hat_flat[i], classi=3))
+                shifts.append(s)
+
+
+    df_results = pd.DataFrame({'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3, 'shift': shifts})
     df_results.to_csv(outfile, index=False)
 
 def eval_cardiac_model(modelpath, outfile):
