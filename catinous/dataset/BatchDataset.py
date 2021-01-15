@@ -271,11 +271,12 @@ class LIDCBatch(BatchDataset):
 
         target = {}
         target['boxes'] = torch.as_tensor(annotation, dtype=torch.float32)
-        target['labels'] = torch.as_tensor((elem.bin_malignancy + 1,), dtype=torch.int64)
-        target['image_id'] = torch.tensor([index])
+        target['labels'] = torch.as_tensor([elem.bin_malignancy + 1]*len(annotation), dtype=torch.int64)
+        target['image_id'] = torch.tensor([index]*len(annotation))
+
         target['area'] = torch.as_tensor(
             ((annotation[:, 3] - annotation[:, 1]) * (annotation[:, 2] - annotation[:, 0])))
-        target['iscrowd'] = torch.zeros((1,), dtype=torch.int64)
+        target['iscrowd'] = torch.zeros((len(annotation)), dtype=torch.int64)
 
         return torch.as_tensor(img, dtype=torch.float32), target, elem.scanner, elem.image
 
