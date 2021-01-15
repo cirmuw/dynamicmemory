@@ -197,11 +197,9 @@ class DynamicMemoryModel(pl.LightningModule):
         x, y, scanner, filepath = batch
         self.grammatrices = []
 
-        #train with memory
-        if self.hparams.use_memory and self.hparams.continuous:
+        if self.hparams.continuous:
             # save checkpoint at scanner shift
             newshift = False
-            shifts = None
             for s in scanner:
                 if s != self.hparams.order[0] and not self.scanner_checkpoints[s]:
                     newshift = True
@@ -211,6 +209,9 @@ class DynamicMemoryModel(pl.LightningModule):
                 weights_path = utils.TRAINED_MODELS_FOLDER + exp_name + '_shift_' + shift_scanner + '.pt'
                 torch.save(self.model.state_dict(), weights_path)
                 self.scanner_checkpoints[shift_scanner] = True
+
+        #train with memory
+        if self.hparams.use_memory and self.hparams.continuous:
             self.freeze()
             #update gram matrices for current memory
             if not self.seperatestyle:
