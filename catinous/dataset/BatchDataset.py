@@ -62,7 +62,8 @@ class LIDCBatch(BatchDataset):
 
         if validation:
             self.df = self.df.sort_values('patient_id').reset_index(drop=True)
-            self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
+
+        self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
 
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
