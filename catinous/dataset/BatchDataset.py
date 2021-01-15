@@ -219,11 +219,11 @@ class LIDCBatch(BatchDataset):
         y2s = []
         for i, row in self.df_multiplenodules.loc[self.df_multiplenodules.image == elem.image].iterrows():
 
-            x1_new = shifty_aug
-            x2_new = shifty_aug
+            x1_new =  row.x1 - shifty_aug
+            x2_new = row.x2 - shifty_aug
 
-            y1_new = shiftx_aug
-            y2_new = shiftx_aug
+            y1_new = row.y1 - shiftx_aug
+            y2_new = row.y2 - shiftx_aug
 
             if x1_new > 0 and x1_new < self.cropped_to[0] and y1_new > 0 and y1_new < self.cropped_to[1]:
                 xs.append(x1_new)
