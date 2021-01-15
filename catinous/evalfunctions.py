@@ -9,7 +9,10 @@ def eval_cardiac(hparams, outfile):
     device = torch.device('cuda')
 
     dl_test = DataLoader(CardiacBatch(hparams['datasetfile'], split=['test']), batch_size=16)
+    print('dl loaded')
+
     model, _, _, _ = dmodel.trained_model(hparams, training=False)
+    print('reading model done')
     model.to(device)
     model.eval()
 
@@ -38,8 +41,8 @@ def eval_cardiac(hparams, outfile):
     print('finished eval on model')
 
     modelpath = dmodel.cached_path(hparams)
-    shifts = ['Canon', 'GE', 'Philips']
-    for s in shifts:
+
+    for s in ['Canon', 'GE', 'Philips']:
         shiftmodelpath = f'{modelpath[:-3]}_shift_{s}.pt'
         print('starting load shift model', s, shiftmodelpath)
         model.model.load_state_dict(torch.load(shiftmodelpath, map_location=device))

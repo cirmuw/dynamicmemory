@@ -62,6 +62,7 @@ class LIDCBatch(BatchDataset):
 
         if validation:
             self.df = self.df.sort_values('patient_id').reset_index(drop=True)
+            self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
 
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
@@ -153,11 +154,35 @@ class LIDCBatch(BatchDataset):
             im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
             im_crop = mut.norm01(im_crop)
 
-        box = np.zeros((1, 4))
-        box[0, 0] = x
-        box[0, 1] = y
-        box[0, 2] = x2
-        box[0, 3] = y2
+        xs = []
+        x2s = []
+        ys = []
+        y2s = []
+        for i, row in self.df_multiplenodules.loc[self.df_multiplenodules.image==elem.image].iterrows():
+            xs.append(row.x1 - s2)
+            x2s.append(row.x2 -s2)
+
+            ys.append(row.y1 - s1)
+            y2s.append(row.y2 - s1)
+
+        if xs==[]:
+            box = np.zeros((1, 4))
+            box[0, 0] = x
+            box[0, 1] = y
+            box[0, 2] = x2
+            box[0, 3] = y2
+        else:
+            box = np.zeros((len(xs)+1, 4))
+            box[0, 0] = x
+            box[0, 1] = y
+            box[0, 2] = x2
+            box[0, 3] = y2
+
+            for j, x in enumerate(xs):
+                box[j+1, 0] = x
+                box[j+1, 1] = ys[j]
+                box[j+1, 2] = x2s[j]
+                box[j+1, 3] = y2s[j]
 
         return np.tile(im_crop, [3, 1, 1]), box
 

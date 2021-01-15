@@ -510,7 +510,6 @@ def trained_model(hparams, training=True):
     exp_name = utils.get_expname(hparams)
     print(exp_name)
     weights_path = cached_path(hparams)#utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
-    print('Read: ' + weights_path)
 
     if not os.path.exists(weights_path):
         if training:
