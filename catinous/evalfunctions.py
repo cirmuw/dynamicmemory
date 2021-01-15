@@ -20,6 +20,7 @@ def eval_cardiac(hparams, outfile):
     shifts = []
     img = []
 
+    print('starting to eval on model')
     for batch in dl_test:
         x, y, scanner, filepath = batch
         x = x.to(device)
@@ -34,13 +35,16 @@ def eval_cardiac(hparams, outfile):
             dice_3.append(mut.dice(y[i], y_hat_flat[i], classi=3))
             img.append(filepath[i])
             shifts.append('None')
+    print('finished eval on model')
 
     modelpath = dmodel.cached_path(hparams)
     shifts = ['Canon', 'GE', 'Philips']
     for s in shifts:
         shiftmodelpath = f'{modelpath[:-3]}_shift_{s}.pt'
+        print('starting load shift model', s, shiftmodelpath)
         model.model.load_state_dict(torch.load(shiftmodelpath, map_location=device))
         model.freeze()
+        print('starting to eval on shiftmodel', s)
 
         for batch in dl_test:
             x, y, scanner, filepath = batch
@@ -57,7 +61,7 @@ def eval_cardiac(hparams, outfile):
                 img.append(filepath[i])
 
                 shifts.append(s)
-
+        print('finished to eval on shiftmodel', s)
 
     df_results = pd.DataFrame({'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3, 'shift': shifts})
     df_results.to_csv(outfile, index=False)

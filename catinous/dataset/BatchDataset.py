@@ -57,9 +57,12 @@ class LIDCBatch(BatchDataset):
         super(BatchDataset, self).__init__()
         self.init(datasetfile, split, iterations, batch_size, res, seed)
 
-
         self.cropped_to = cropped_to
         self.validation = validation
+
+        if validation:
+            self.df = self.df.sort_values('patient_id').reset_index(drop=True)
+
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
         try:
