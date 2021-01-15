@@ -159,11 +159,19 @@ class LIDCBatch(BatchDataset):
         ys = []
         y2s = []
         for i, row in self.df_multiplenodules.loc[self.df_multiplenodules.image==elem.image].iterrows():
-            xs.append(row.x1 - s2)
-            x2s.append(row.x2 -s2)
 
-            ys.append(row.y1 - s1)
-            y2s.append(row.y2 - s1)
+            x1_new = row.x1-s2
+            x2_new = row.x2-s2
+
+            y1_new = row.y1-s1
+            y2_new = row.y2-s1
+
+            if x1_new>0 and x1_new<self.cropped_to[0] and y1_new>0 and y1_new<self.cropped_to[1]:
+                xs.append(x1_new)
+                x2s.append(x2_new)
+
+                ys.append(y1_new)
+                y2s.append(y2_new)
 
         if xs==[]:
             box = np.zeros((1, 4))
@@ -186,7 +194,7 @@ class LIDCBatch(BatchDataset):
 
         return np.tile(im_crop, [3, 1, 1]), box
 
-    def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, validation=False):
+    def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, ):
         dcm = pyd.read_file(elem.image, force=True)
         x = elem.x1
         y = elem.y1
@@ -199,17 +207,48 @@ class LIDCBatch(BatchDataset):
             x2 -= (dcm.Rows - self.cropped_to[0]) / 2
             y2 -= (dcm.Columns - self.cropped_to[1]) / 2
 
-        if not validation:
-            y -= shiftx_aug
-            x -= shifty_aug
-            y2 -= shiftx_aug
-            x2 -= shifty_aug
+        y -= shiftx_aug
+        x -= shifty_aug
+        y2 -= shiftx_aug
+        x2 -= shifty_aug
 
-        box = np.zeros((1, 4))
-        box[0, 0] = x
-        box[0, 1] = y
-        box[0, 2] = x2
-        box[0, 3] = y2
+        xs = []
+        x2s = []
+        ys = []
+        y2s = []
+        for i, row in self.df_multiplenodules.loc[self.df_multiplenodules.image == elem.image].iterrows():
+
+            x1_new = shifty_aug
+            x2_new = shifty_aug
+
+            y1_new = shiftx_aug
+            y2_new = shiftx_aug
+
+            if x1_new > 0 and x1_new < self.cropped_to[0] and y1_new > 0 and y1_new < self.cropped_to[1]:
+                xs.append(x1_new)
+                x2s.append(x2_new)
+
+                ys.append(y1_new)
+                y2s.append(y2_new)
+
+        if xs == []:
+            box = np.zeros((1, 4))
+            box[0, 0] = x
+            box[0, 1] = y
+            box[0, 2] = x2
+            box[0, 3] = y2
+        else:
+            box = np.zeros((len(xs) + 1, 4))
+            box[0, 0] = x
+            box[0, 1] = y
+            box[0, 2] = x2
+            box[0, 3] = y2
+
+            for j, x in enumerate(xs):
+                box[j + 1, 0] = x
+                box[j + 1, 1] = ys[j]
+                box[j + 1, 2] = x2s[j]
+                box[j + 1, 3] = y2s[j]
 
         return box
 
