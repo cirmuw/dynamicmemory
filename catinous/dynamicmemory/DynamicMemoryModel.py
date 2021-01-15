@@ -393,7 +393,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
             gt = []
             for t in targets:
-                gt.append(t['boxes'][0])
+                gt.append(t['boxes'])
 
             return {'final_boxes': final_boxes, 'final_scores': final_scores, 'gt': gt, 'scanner': scanner}
 
@@ -460,9 +460,12 @@ class DynamicMemoryModel(pl.LightningModule):
                             for i, b in enumerate(fb):
                                 if fs[i] > k:
                                     boxes_count += 1
-                                    if utils.bb_intersection_over_union(g, b) > iou_thres:
-                                        detected = True
-                                    else:
+                                    det_gt = False
+                                    for singleg in g:
+                                        if utils.bb_intersection_over_union(singleg, b) > iou_thres:
+                                            detected = True
+                                            det_gt = True
+                                    if not det_gt:
                                         false_positives += 1
                             if detected:
                                 true_positives += 1
