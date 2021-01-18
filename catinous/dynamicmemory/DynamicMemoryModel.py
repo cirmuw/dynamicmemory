@@ -147,6 +147,11 @@ class DynamicMemoryModel(pl.LightningModule):
                                     split=['base'],
                                     res=self.hparams.order[0]),
                        batch_size=8, num_workers=8, drop_last=True)
+        elif self.hparams.task == 'lidc':
+            dl = DataLoader(LIDCBatch(self.hparams.datasetfile,
+                                    split=['base'],
+                                    res=self.hparams.order[0]),
+                       batch_size=8, num_workers=8, drop_last=True)
 
         base_grams = []
         print('in base domain clf')
