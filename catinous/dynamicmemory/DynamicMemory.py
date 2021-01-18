@@ -12,7 +12,10 @@ class MemoryItem():
 
     def __init__(self, img, target, filepath, scanner, current_grammatrix=None, pseudo_domain=None):
         self.img = img.detach().cpu()
-        self.target = target.detach().cpu()
+        if type(self.target)==torch.Tensor:
+            self.target = target.detach().cpu()
+        else:
+            self.target = target
         self.filepath = filepath
         self.scanner = scanner
         self.traincounter = 0
