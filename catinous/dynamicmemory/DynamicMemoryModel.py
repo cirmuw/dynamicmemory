@@ -230,11 +230,19 @@ class DynamicMemoryModel(pl.LightningModule):
             self.grammatrices = []
 
             if self.seperatestyle:
-                _ = self.stylemodel(x.float())
+                if self.hparams.task == 'lidc':
+                    imgsx = list(i.to(self.device) for i in x)
+                    _ = self.stylemodel(imgsx.float())
+                else:
+                    _ = self.stylemodel(x.float())
                 if self.forcemisclassified:
                     y_hat = self.forward(x.float())
             else:
-                y_hat = self.forward(x.float())
+                if self.hparams.task == 'lidc':
+                    imgsx = list(i.to(self.device) for i in x)
+                    y_hat = self.forward_lidc(imgsx.float())
+                else:
+                    y_hat = self.forward(x.float())
 
             if self.forcemisclassified:
                 forcemetrics = []
