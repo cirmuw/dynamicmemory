@@ -69,11 +69,15 @@ def eval_cardiac(hparams, outfile):
     df_results = pd.DataFrame({'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3, 'shift': shifts})
     df_results.to_csv(outfile, index=False)
 
-def eval_cardiac_model(modelpath, outfile):
+
+def eval_cardiac_batch(hparams, outfile):
     device = torch.device('cuda')
 
     dl_test = DataLoader(CardiacBatch(hparams['datasetfile'], split=['test']), batch_size=16)
+    print('dl loaded')
+
     model, _, _, _ = dmodel.trained_model(hparams, training=False)
+    print('reading model done')
     model.to(device)
     model.eval()
 
@@ -81,9 +85,11 @@ def eval_cardiac_model(modelpath, outfile):
     dice_1 = []
     dice_2 = []
     dice_3 = []
+    img = []
 
+    print('starting to eval on model')
     for batch in dl_test:
-        x, y, scanner, _ = batch
+        x, y, scanner, filepath = batch
         x = x.to(device)
         y_hat = model.forward(x)['out']
         y_hat_flat = torch.argmax(y_hat, dim=1).detach().cpu().numpy()
@@ -94,6 +100,8 @@ def eval_cardiac_model(modelpath, outfile):
             dice_1.append(mut.dice(y[i], y_hat_flat[i], classi=1))
             dice_2.append(mut.dice(y[i], y_hat_flat[i], classi=2))
             dice_3.append(mut.dice(y[i], y_hat_flat[i], classi=3))
+            img.append(filepath[i])
+    print('finished eval on model')
 
     df_results = pd.DataFrame({'scanner': scanners, 'dice_1': dice_1, 'dice_2': dice_2, 'dice_3': dice_3})
     df_results.to_csv(outfile, index=False)

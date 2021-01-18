@@ -16,6 +16,7 @@ class MemoryItem():
             self.target = target.detach().cpu()
         else:
             self.target = target
+
         self.filepath = filepath
         self.scanner = scanner
         self.traincounter = 0
