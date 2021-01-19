@@ -109,12 +109,12 @@ def eval_cardiac_batch(hparams, outfile):
     df_results.to_csv(outfile, index=False)
 
 
-def ap_model_hparams(hparams):
+def ap_model_hparams(hparams, split='test'):
     device = torch.device('cuda')
     model, logs, df_mem, expname = dmodel.trained_model(hparams, training=False)
     model.to(device)
     model.eval()
-    recalls, precision = ap_model(model)
+    recalls, precision = ap_model(model, split)
     return recalls, precision, model
 
 
@@ -240,6 +240,3 @@ def eval_lidc_cont(hparams, seeds, split='test', shifts=None):
         aps['seed'] = seed
         seeds_aps.append(aps)
     seeds_aps.to_csv(outputfile, index=False)
-
-
-
