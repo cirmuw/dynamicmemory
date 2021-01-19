@@ -87,7 +87,13 @@ class LIDCContinuous(ContinuousDataset):
 
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        img = pyd.read_file(path).pixel_array
+        try:
+            img = pyd.read_file(path).pixel_array
+        except Exception as e:
+            img = pyd.read_file(path, force=True)
+            img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
+            img = img.pixel_array
+            
         if self.cropped_to is not None:
             w = img.shape[0]
             s1 = int((w - self.cropped_to[0]) / 2)

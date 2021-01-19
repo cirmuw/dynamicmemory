@@ -15,7 +15,9 @@ class MemoryItem():
         if type(target)==torch.Tensor:
             self.target = target.detach().cpu()
         else:
-            self.target = target
+            self.target = {}
+            for k, v in target.items():
+                self.target[k] = v.detach().cpu()
 
         self.filepath = filepath
         self.scanner = scanner
@@ -133,7 +135,7 @@ class DynamicMemory():
             outlier_grams = [o.current_grammatrix for o in self.outlier_memory]
 
             distances = squareform(pdist(outlier_grams))
-            print('check outlier memory distances', distances, sorted([np.array(sorted(d)[:6]).sum() for d in distances])[5])
+            #print('check outlier memory distances', distances, sorted([np.array(sorted(d)[:6]).sum() for d in distances])[5])
             if sorted([np.array(sorted(d)[:6]).sum() for d in distances])[5]<0.20: #TODO: this is an arbritary threshold
 
                 clf = IsolationForest(n_estimators=5, random_state=self.seed, warm_start=True, contamination=0.10).fit(

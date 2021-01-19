@@ -527,15 +527,15 @@ def trained_model(hparams, training=True):
     model = DynamicMemoryModel(hparams=hparams, device=device)
     hparams = utils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
     exp_name = utils.get_expname(hparams)
-    print(exp_name)
+    print('expname', exp_name)
     weights_path = cached_path(hparams)#utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
 
     if not os.path.exists(weights_path):
         if training:
-            logger = utils.pllogger(model.hparams)
+            logger = utils.pllogger(hparams)
             trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
                               val_check_interval=model.hparams.val_check_interval,
-                              checkpoint_callback=False)
+                              checkpoint_callback=False, progress_bar_refresh_rate=0)
             trainer.fit(model)
             model.freeze()
             torch.save(model.state_dict(), weights_path)
