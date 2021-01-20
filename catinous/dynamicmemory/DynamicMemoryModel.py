@@ -433,7 +433,7 @@ class DynamicMemoryModel(pl.LightningModule):
                 self.log(f'val_dice2_{s}', df_mean['dice_2'][s])
                 self.log(f'val_dice3_{s}', df_mean['dice_3'][s])
         elif self.hparams.task == 'lidc':
-            iou_thres = 0.5
+            iou_thres = 0.2
 
             overall_true_pos = dict()
             overall_false_pos = dict()
@@ -470,24 +470,24 @@ class DynamicMemoryModel(pl.LightningModule):
                         false_positives = 0
                         false_negatives = 0
                         true_positives = 0
-                        detected = False
+                        detected = False*len(g)
                         boxes_count = 0
                         if len(fb) > 0:
                             for i, b in enumerate(fb):
                                 if fs[i] > k:
                                     boxes_count += 1
                                     det_gt = False
-                                    for singleg in g:
+                                    for m, singleg in enumerate(g):
                                         if utils.bb_intersection_over_union(singleg, b) > iou_thres:
-                                            detected = True
+                                            detected[n] = True
                                             det_gt = True
                                     if not det_gt:
                                         false_positives += 1
-                            if detected:
+                        for d in detected:
+                            if d:
                                 true_positives += 1
                             else:
                                 false_negatives += 1
-
                         overall_true_pos[s][k] += true_positives
                         overall_false_pos[s][k] += false_positives
                         overall_false_neg[s][k] += false_negatives

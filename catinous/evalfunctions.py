@@ -125,9 +125,9 @@ def ap_model(model, split='test'):
 
     for res in ['ges', 'geb', 'sie', 'time_siemens']:
         ds_test = LIDCBatch('/project/catinous/lungnodulesfinalpatientsplit.csv',
-                            cropped_to=(288, 288), split=[split], res=res, validation=True)
+                            cropped_to=(288, 288), split=split, res=res, validation=True)
 
-        iou_thres = 0.4
+        iou_thres = 0.2
 
         overall_true_pos = dict()
         overall_false_pos = dict()
@@ -153,31 +153,47 @@ def ap_model(model, split='test'):
             final_boxes, final_scores = cutils.correct_boxes(boxes_np[0], scores_np[0])
 
             gt = annot['boxes']
+            #if res=='time_siemens':
+            #    print('new time series')
+            #    print(gt)
+            #    print(final_boxes, len(final_boxes))
             for k in np.arange(0.0, 1.01, 0.05):
                 false_positives = 0
                 false_negatives = 0
                 true_positives = 0
-                detected = False
+                detected = [False]*len(gt)
                 boxes_count = 0
                 if len(final_boxes) > 0:
                     for i, b in enumerate(final_boxes):
                         if final_scores[i] > k:
                             boxes_count += 1
                             detected_gt = False
-                            for g in gt:
+                            for j, g in enumerate(gt):
+                                #if res=='time_siemens':
+                                    #print(cutils.bb_intersection_over_union(g, b), 'intersect')
                                 if cutils.bb_intersection_over_union(g, b) > iou_thres:
-                                    detected = True
+                                    detected[j] = True
                                     detected_gt = True
                             if not detected_gt:
                                 false_positives += 1
-                    if detected:
-                        true_positives += 1
+                #if res == 'time_siemens':
+                #    print(detected)
+                for d in detected:
+                    if d:
+                        true_positives+=1
                     else:
-                        false_negatives += 1
+                        false_negatives+=1
+
+                    #if detected:
+                    #    true_positives += 1
+                    #else:
+                    #    false_negatives += 1
                 overall_true_pos[k] += true_positives
                 overall_false_pos[k] += false_positives
                 overall_false_neg[k] += false_negatives
                 overall_boxes_count[k] += boxes_count
+        #if res=='time_siemens':
+            #print(overall_boxes_count, overall_true_pos, overall_false_pos, overall_false_neg)
         for k in np.arange(0.0, 1.01, 0.05):
             if (overall_false_neg[k] + overall_true_pos[k]) == 0:
                 recalls[res].append(0.0)
@@ -208,7 +224,7 @@ def get_ap_for_res(hparams, split='test', shifts=None):
     device = torch.device('cuda')
     recalls, precisions, model = ap_model_hparams(hparams, split)
     aps = recall_precision_to_ap(recalls, precisions)
-    df_aps = pd.DataFrame(aps)
+    df_aps = pd.DataFrame([aps])
 
     if shifts is not None:
         df_aps['shift'] = 'None'
@@ -224,13 +240,13 @@ def get_ap_for_res(hparams, split='test', shifts=None):
 
             recalls, precisions = ap_model(model, split)
             aps = recall_precision_to_ap(recalls, precisions)
-            aps = pd.DataFrame(aps)
+            aps = pd.DataFrame([aps])
             aps['shift'] = s
             df_aps.append(aps)
     return df_aps
 
-def eval_lidc_cont(hparams, seeds, split=['test'], shifts=None):
-    outputfile = f'/project/catinous/results/cardiac/{cutils.get_expname(hparams)}_meanaverageprecision.csv'
+def eval_lidc_cont(hparams, seeds, split='test', shifts=None):
+    outputfile = f'/project/catinous/results/lidc/{cutils.get_expname(hparams)}_meanaverageprecision.csv'
 
     seeds_aps = pd.DataFrame()
     for i, seed in enumerate(seeds):
