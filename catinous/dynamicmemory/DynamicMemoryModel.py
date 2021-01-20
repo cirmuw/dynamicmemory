@@ -479,7 +479,7 @@ class DynamicMemoryModel(pl.LightningModule):
                                     det_gt = False
                                     for m, singleg in enumerate(g):
                                         if utils.bb_intersection_over_union(singleg, b) > iou_thres:
-                                            detected[n] = True
+                                            detected[m] = True
                                             det_gt = True
                                     if not det_gt:
                                         false_positives += 1
