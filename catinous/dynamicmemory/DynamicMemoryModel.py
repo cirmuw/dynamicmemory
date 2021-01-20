@@ -470,7 +470,7 @@ class DynamicMemoryModel(pl.LightningModule):
                         false_positives = 0
                         false_negatives = 0
                         true_positives = 0
-                        detected = False*len(g)
+                        detected = [False]*len(g)
                         boxes_count = 0
                         if len(fb) > 0:
                             for i, b in enumerate(fb):
