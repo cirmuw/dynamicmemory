@@ -153,17 +153,17 @@ class LIDCContinuous(ContinuousDataset):
             box[0, 2] = x2
             box[0, 3] = y2
         else:
-            box = np.zeros((len(xs) + 1, 4))
-            box[0, 0] = x
-            box[0, 1] = y
-            box[0, 2] = x2
-            box[0, 3] = y2
+            box = np.zeros((len(xs), 4))
+            #box[0, 0] = x
+            #box[0, 1] = y
+            #box[0, 2] = x2
+            #box[0, 3] = y2
 
             for j, x in enumerate(xs):
-                box[j + 1, 0] = x
-                box[j + 1, 1] = ys[j]
-                box[j + 1, 2] = x2s[j]
-                box[j + 1, 3] = y2s[j]
+                box[j, 0] = x
+                box[j, 1] = ys[j]
+                box[j, 2] = x2s[j]
+                box[j, 3] = y2s[j]
 
         return box
 

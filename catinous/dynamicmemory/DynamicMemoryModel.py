@@ -465,6 +465,9 @@ class DynamicMemoryModel(pl.LightningModule):
                     s = scanner[j]
                     g = gt[j]
                     fs = final_scores[j]
+                    if s=='time_siemens':
+                        print(g)
+                        print(fb)
 
                     for k in np.arange(0.0, 1.01, 0.05):
                         false_positives = 0
@@ -488,12 +491,21 @@ class DynamicMemoryModel(pl.LightningModule):
                                 true_positives += 1
                             else:
                                 false_negatives += 1
+                        if s == 'time_siemens':
+                            print(k, false_negatives, false_positives, true_positives)
                         overall_true_pos[s][k] += true_positives
                         overall_false_pos[s][k] += false_positives
                         overall_false_neg[s][k] += false_negatives
                         overall_boxes_count[s][k] += boxes_count
 
             aps = dict()
+            print('time siemens')
+            print(overall_true_pos['time_siemens'])
+            print(overall_false_pos['time_siemens'])
+            print(overall_false_neg['time_siemens'])
+            print(overall_boxes_count['time_siemens'])
+            print('geb', overall_true_pos['geb'], overall_false_pos['geb'], overall_boxes_count['geb'])
+
             for scanner in self.hparams.order:
                 for k in np.arange(0.0, 1.01, 0.05):
                     if (overall_false_neg[scanner][k] + overall_true_pos[scanner][k]) == 0:
@@ -517,7 +529,9 @@ class DynamicMemoryModel(pl.LightningModule):
                 aps[scanner] = np.array(ap).mean()
 
                 self.log(f'val_ap_{scanner}', aps[scanner])
+            print(aps['geb'])
 
+            print(aps['time_siemens'])
 def trained_model(hparams, training=True):
     df_cache = None
     if torch.cuda.is_available():

@@ -242,7 +242,7 @@ def get_ap_for_res(hparams, split='test', shifts=None):
             aps = recall_precision_to_ap(recalls, precisions)
             aps = pd.DataFrame([aps])
             aps['shift'] = s
-            df_aps.append(aps)
+            df_aps = df_aps.append(aps)
     return df_aps
 
 def eval_lidc_cont(hparams, seeds, split='test', shifts=None):
@@ -254,5 +254,5 @@ def eval_lidc_cont(hparams, seeds, split='test', shifts=None):
         hparams['run_postfix'] = i+1
         aps = get_ap_for_res(hparams, split=split, shifts=shifts)
         aps['seed'] = seed
-        seeds_aps.append(aps)
+        seeds_aps = seeds_aps.append(aps)
     seeds_aps.to_csv(outputfile, index=False)
