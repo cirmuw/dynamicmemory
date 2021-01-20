@@ -229,7 +229,7 @@ def get_ap_for_res(hparams, split='test', shifts=None):
             df_aps.append(aps)
     return df_aps
 
-def eval_lidc_cont(hparams, seeds, split='test', shifts=None):
+def eval_lidc_cont(hparams, seeds, split=['test'], shifts=None):
     outputfile = f'/project/catinous/results/cardiac/{cutils.get_expname(hparams)}_meanaverageprecision.csv'
 
     seeds_aps = pd.DataFrame()
