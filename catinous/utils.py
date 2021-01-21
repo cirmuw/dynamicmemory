@@ -430,3 +430,13 @@ def load_box_annotation(elem, cropped_to=None, shiftx_aug=0, shifty_aug=0, valid
     box[0, 3] = y2
 
     return box
+
+def get_false_negatives(predicted_boxes, predicted_scores, gt_boxes):
+    detected = [False] * len(gt_boxes)
+    if len(predicted_boxes) > 0:
+        for i, b in enumerate(predicted_boxes):
+            if predicted_scores[i] > 0.2:
+                for j, g in enumerate(gt_boxes):
+                    if bb_intersection_over_union(g, b) > 0.4:
+                        detected[j] = True
+    return np.size(detected) - np.count_nonzero(detected)

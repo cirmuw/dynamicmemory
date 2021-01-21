@@ -236,7 +236,8 @@ class DynamicMemoryModel(pl.LightningModule):
                 else:
                     _ = self.stylemodel(x.float())
                 if self.forcemisclassified:
-                    y_hat = self.forward(x.float())
+                    imgsx = torch.stack(x)
+                    y_hat = self.forward(imgsx.float())
             else:
                 if self.hparams.task == 'lidc':
                     imgsx = torch.stack(x)
@@ -252,14 +253,33 @@ class DynamicMemoryModel(pl.LightningModule):
                     y_det = y.detach().cpu().numpy()
                     for i, m in enumerate(y):
                         forcemetrics.append(mut.dice(y_det[i], y_hat_flat[i], classi=1))
+                elif self.hparams.task == 'lidc':
+                    out_boxes = [utils.filter_boxes_area(y_hat[i]['boxes'].cpu().detach().numpy(),
+                                                          y_hat[i]['scores'].cpu().detach().numpy()) for i in
+                                 range(len(y_hat))]
+                    boxes_np = [b[0] for b in out_boxes]
+                    scores_np = [b[1] for b in out_boxes]
+                    for i, box_np in enumerate(boxes_np):
+                        fb, fs = utils.correct_boxes(box_np, scores_np[i])
+                        fneg = utils.get_false_negatives(fb, fs, y[i]['boxes'])
+                        forcemetrics.append(fneg)
 
             forcedelements = []
             for i, img in enumerate(x):
                 grammatrix = [bg[i].cpu() for bg in self.grammatrices]
-                mi = MemoryItem(img, y[i], filepath[i], scanner[i], grammatrix)
+                target = y[i]
+                if type(target) == torch.Tensor:
+                    det_target = target.detach().cpu()
+                else:
+                    det_target = {}
+                    for k, v in target.items():
+                        det_target[k] = v.detach().cpu()
+                mi = MemoryItem(img.detach().cpu(), det_target, filepath[i], scanner[i], grammatrix)
                 self.trainingsmemory.insert_element(mi)
                 if self.forcemisclassified:
-                    if forcemetrics[i]<self.hparams.misclass_threshold:
+                    if self.hparams.task=='cardiac' and forcemetrics[i]<self.hparams.misclass_threshold:
+                        forcedelements.append(mi)
+                    elif self.hparams.task=='lidc' and forcemetrics[i]>self.hparams.misclass_threshold:
                         forcedelements.append(mi)
 
             if self.pseudo_detection:
@@ -276,7 +296,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
             self.unfreeze()
 
-            x, y = self.trainingsmemory.get_training_batch(self.hparams.batch_size, self.hparams.random_memory, forceditems=forcedelements)
+            x, y = self.trainingsmemory.get_training_batch(self.hparams.training_batch_size, forceditems=forcedelements)
 
             if self.hparams.task=='lidc':
                 x = list(i.to(self.device) for i in x)
@@ -465,9 +485,6 @@ class DynamicMemoryModel(pl.LightningModule):
                     s = scanner[j]
                     g = gt[j]
                     fs = final_scores[j]
-                    if s=='time_siemens':
-                        print(g)
-                        print(fb)
 
                     for k in np.arange(0.0, 1.01, 0.05):
                         false_positives = 0
@@ -491,20 +508,20 @@ class DynamicMemoryModel(pl.LightningModule):
                                 true_positives += 1
                             else:
                                 false_negatives += 1
-                        if s == 'time_siemens':
-                            print(k, false_negatives, false_positives, true_positives)
+                        #if s == 'time_siemens':
+                        #    print(k, false_negatives, false_positives, true_positives)
                         overall_true_pos[s][k] += true_positives
                         overall_false_pos[s][k] += false_positives
                         overall_false_neg[s][k] += false_negatives
                         overall_boxes_count[s][k] += boxes_count
 
             aps = dict()
-            print('time siemens')
-            print(overall_true_pos['time_siemens'])
-            print(overall_false_pos['time_siemens'])
-            print(overall_false_neg['time_siemens'])
-            print(overall_boxes_count['time_siemens'])
-            print('geb', overall_true_pos['geb'], overall_false_pos['geb'], overall_boxes_count['geb'])
+            #print('time siemens')
+            #print(overall_true_pos['time_siemens'])
+            #print(overall_false_pos['time_siemens'])
+            #print(overall_false_neg['time_siemens'])
+            #print(overall_boxes_count['time_siemens'])
+            #print('geb', overall_true_pos['geb'], overall_false_pos['geb'], overall_boxes_count['geb'])
 
             for scanner in self.hparams.order:
                 for k in np.arange(0.0, 1.01, 0.05):
@@ -529,9 +546,9 @@ class DynamicMemoryModel(pl.LightningModule):
                 aps[scanner] = np.array(ap).mean()
 
                 self.log(f'val_ap_{scanner}', aps[scanner])
-            print(aps['geb'])
+            #print(aps['geb'])
 
-            print(aps['time_siemens'])
+            #print(aps['time_siemens'])
 def trained_model(hparams, training=True):
     df_cache = None
     if torch.cuda.is_available():

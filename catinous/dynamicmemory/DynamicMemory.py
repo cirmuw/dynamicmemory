@@ -11,14 +11,8 @@ import numpy as np
 class MemoryItem():
 
     def __init__(self, img, target, filepath, scanner, current_grammatrix=None, pseudo_domain=None):
-        self.img = img.detach().cpu()
-        if type(target)==torch.Tensor:
-            self.target = target.detach().cpu()
-        else:
-            self.target = {}
-            for k, v in target.items():
-                self.target[k] = v.detach().cpu()
-
+        self.img = img
+        self.target = target
         self.filepath = filepath
         self.scanner = scanner
         self.traincounter = 0
@@ -34,8 +28,6 @@ class DynamicMemory():
         self.memorylist = []
         self.memorymaximum = memorymaximum
         self.gram_weights = gram_weights
-
-        #this is for balancing in the binary classification case...
         self.balance_memory = balance_memory
 
         if base_if is not None:
@@ -66,7 +58,7 @@ class DynamicMemory():
             # insert into outlier memory
             # check outlier memory for new clusters
             self.outlier_memory.append(item)
-        if not self.memoryfull:
+        elif not self.memoryfull:
             self.memorylist.append(item)
             if len(self.memorylist) == self.memorymaximum:
                 self.memoryfull = True
@@ -144,6 +136,7 @@ class DynamicMemory():
                 new_domain_label = len(self.isoforests)
                 print(self.isoforests, new_domain_label)
                 self.max_per_domain = int(self.memorymaximum/(new_domain_label+1))
+                print('max domain', self.max_per_domain, self.memorymaximum, new_domain_label)
                 self.domaincounter= 0
 
                 self.flag_items_for_deletion()
@@ -184,7 +177,7 @@ class DynamicMemory():
         return current_domain
 
     #forceditems are in the batch, the others are chosen randomly
-    def get_training_batch(self, batchsize, randombatch=False, forceditems=None):
+    def get_training_batch(self, batchsize, forceditems=None):
         batchsize = min(batchsize, len(self.memorylist))
 
         imgshape = self.memorylist[0].img.shape
@@ -204,17 +197,26 @@ class DynamicMemory():
 
             batchsize -= j
 
-        if randombatch:
-            random.shuffle(self.memorylist)
-        else:
-            self.memorylist.sort()
+        if self.balance_memory and self.pseudo_detection and len(self.isoforests)>1:
+            items_per_domain = math.ceil(batchsize/len(self.isoforests))
 
-        if batchsize>0:
-            for ci in self.memorylist[-batchsize:]:
-                x[j] = ci.img
-                y.append(ci.target)
-                ci.traincounter += 1
-                j += 1
+            for i in range(len(self.isoforests)):
+                domain_items = self.get_domainitems(i)
+                random.shuffle(domain_items)
+                for k in range(items_per_domain):
+                    if batchsize>0:
+                        x[j] = domain_items[k].img
+                        y.append(domain_items[k].target)
+                        j += 1
+                        batchsize -= 1
+        else:
+            random.shuffle(self.memorylist)
+            if batchsize>0:
+                for ci in self.memorylist[-batchsize:]:
+                    x[j] = ci.img
+                    y.append(ci.target)
+                    ci.traincounter += 1
+                    j += 1
 
         return x, y
 
@@ -225,7 +227,8 @@ class DynamicMemory():
         ys = []
 
         if forceditems is not None:
-            force_per_batch = len(forceditems)/batches
+            force_per_batch = int(len(forceditems)/batches)
+            print('force per batch', force_per_batch, len(forceditems), batches)
 
         for b in range(batches):
             bs = batchsize
@@ -271,6 +274,7 @@ class DynamicMemory():
         for item in self.outlier_memory:
             item.outlier_counter += 1
             if item.outlier_counter > self.outlier_epochs:
+                print('removing from outliers', item.scanner)
                 self.outlier_memory.remove(item)
 
     def __iter__(self):
