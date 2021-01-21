@@ -134,9 +134,7 @@ class DynamicMemory():
                     outlier_grams)
 
                 new_domain_label = len(self.isoforests)
-                print(self.isoforests, new_domain_label)
                 self.max_per_domain = int(self.memorymaximum/(new_domain_label+1))
-                print('max domain', self.max_per_domain, self.memorymaximum, new_domain_label)
                 self.domaincounter= 0
 
                 self.flag_items_for_deletion()
@@ -228,7 +226,6 @@ class DynamicMemory():
 
         if forceditems is not None:
             force_per_batch = int(len(forceditems)/batches)
-            print('force per batch', force_per_batch, len(forceditems), batches)
 
         for b in range(batches):
             bs = batchsize
@@ -274,7 +271,6 @@ class DynamicMemory():
         for item in self.outlier_memory:
             item.outlier_counter += 1
             if item.outlier_counter > self.outlier_epochs:
-                print('removing from outliers', item.scanner)
                 self.outlier_memory.remove(item)
 
     def __iter__(self):

@@ -292,7 +292,6 @@ class DynamicMemoryModel(pl.LightningModule):
                         counts[o] = 0
                     for mi in domainitems:
                         counts[mi.scanner] += 1
-                    print('domain', i, len(domainitems), counts)
 
             self.unfreeze()
 
