@@ -202,19 +202,19 @@ class DynamicMemory():
                 domain_items = self.get_domainitems(i)
                 random.shuffle(domain_items)
                 for k in range(items_per_domain):
-                    if batchsize>0:
+                    if batchsize>0 and len(domain_items)>k:
                         x[j] = domain_items[k].img
                         y.append(domain_items[k].target)
                         j += 1
                         batchsize -= 1
-        else:
+
+        if batchsize>0:
             random.shuffle(self.memorylist)
-            if batchsize>0:
-                for ci in self.memorylist[-batchsize:]:
-                    x[j] = ci.img
-                    y.append(ci.target)
-                    ci.traincounter += 1
-                    j += 1
+            for ci in self.memorylist[-batchsize:]:
+                x[j] = ci.img
+                y.append(ci.target)
+                ci.traincounter += 1
+                j += 1
 
         return x, y
 

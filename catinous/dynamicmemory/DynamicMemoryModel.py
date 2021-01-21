@@ -236,8 +236,11 @@ class DynamicMemoryModel(pl.LightningModule):
                 else:
                     _ = self.stylemodel(x.float())
                 if self.forcemisclassified:
-                    imgsx = torch.stack(x)
-                    y_hat = self.forward(imgsx.float())
+                    if self.hparams.task == 'lidc':
+                        imgsx = torch.stack(x)
+                        y_hat = self.forward(imgsx.float())
+                    else:
+                        y_hat = self.forward(x.float())
             else:
                 if self.hparams.task == 'lidc':
                     imgsx = torch.stack(x)
