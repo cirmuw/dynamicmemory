@@ -216,7 +216,7 @@ def load_model(modelstr: str):
     return model, gramlayers
 
 
-def load_model_stylemodel(modelstr: str):
+def load_model_stylemodel(modelstr: str, stylelayers=2):
     stylemodel = models.resnet50(pretrained=True)
 
     if modelstr == 'resnet':
@@ -238,10 +238,13 @@ def load_model_stylemodel(modelstr: str):
     else:
         raise NotImplementedError(f'model {modelstr} not implemented')
 
-    gramlayers = [stylemodel.layer1[-1].conv1,
-                  stylemodel.layer2[-1].conv1]
-                  #stylemodel.layer3[-1].conv1,
-                  #stylemodel.layer4[-1].conv1]
+    if stylelayers==1:
+        gramlayers = [stylemodel.layer1[-1].conv1]
+                      #stylemodel.layer3[-1].conv1,
+                      #stylemodel.layer4[-1].conv1]
+    elif stylelayers==2:
+        gramlayers = [stylemodel.layer1[-1].conv1,
+                      stylemodel.layer2[-1].conv1]
     stylemodel.eval()
 
     return model, stylemodel, gramlayers
