@@ -124,7 +124,7 @@ class DynamicMemoryModel(pl.LightningModule):
                                     split=['base'],
                                     res=self.hparams.order[0]),
                        batch_size=8, num_workers=8, drop_last=True)
-
+            self.model.cuda()
             ewc = utils.EWC(self.model, dl)
 
             return ewc
