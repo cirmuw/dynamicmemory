@@ -304,6 +304,20 @@ class BCEWithLogitWithEWCLoss(torch.nn.BCEWithLogitsLoss):
         return bce + self.lambda_p * penalty
 
 
+class CrossEntropyWithEWCLoss(torch.nn.CrossEntropyLoss):
+
+    def __init__(self, lambda_p):
+        super(CrossEntropyWithEWCLoss, self).__init__()
+        self.register_buffer('lambda_p',lambda_p)
+
+    def forward(self, input, target, penalty):
+        ce = F.cross_entropy(input, target,
+                                           self.weight,
+                                           pos_weight=self.pos_weight,
+                                           reduction=self.reduction)
+        return ce + self.lambda_p * penalty
+
+
 def variable(t: torch.Tensor, use_cuda=True, **kwargs):
     if torch.cuda.is_available() and use_cuda:
         t = t.cuda()
