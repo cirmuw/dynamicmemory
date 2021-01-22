@@ -273,7 +273,7 @@ class EWC(object):
         for input in self.dataset:
             x, y, scanner, filepath = input
             self.model.zero_grad()
-            x = variable(x[0].float())
+            x = variable(x.float())
             output = self.model(x).view(1, -1)
             label = output.max(1)[1].view(-1)
             loss = F.nll_loss(F.log_softmax(output, dim=1), label)
