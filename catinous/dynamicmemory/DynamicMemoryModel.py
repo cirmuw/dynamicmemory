@@ -46,11 +46,11 @@ class DynamicMemoryModel(pl.LightningModule):
 
         self.forcemisclassified = True if 'force_misclassified' in self.hparams else False
         self.pseudo_detection = True if 'pseudodomain_detection' in self.hparams else False
-        self.prepareewc = True if 'EWC' in self.hparams else False
-        self.ewc = True if 'EWC' in self.hparams else False
+        self.useewc = True if 'EWC' in self.hparams else False
 
-        if self.ewc:
+        if self.useewc:
             self.ewcloss = utils.CrossEntropyWithEWCLoss(torch.tensor([self.hparams.EWC_lambda]))
+            self.ewc = self.init_ewc()
 
         if not self.hparams.base_model is None:
             state_dict = torch.load(os.path.join(utils.TRAINED_MODELS_FOLDER, self.hparams.base_model))
@@ -114,6 +114,20 @@ class DynamicMemoryModel(pl.LightningModule):
         hparams['dim'] = 2
 
         return hparams
+
+    def init_ewc(self):
+        if self.hparams.task == 'cardiac':
+            dl = DataLoader(CardiacBatch(self.hparams.datasetfile,
+                                    split=['base'],
+                                    res=self.hparams.order[0]),
+                       batch_size=8, num_workers=8, drop_last=True)
+
+            ewc = utils.EWC(self.model, dl)
+
+            return ewc
+        else:
+            raise NotImplementedError('EWC is only implemented for cardiac segmentation')
+
 
     def init_memory_and_gramhooks(self):
         if self.hparams.gram_weights is None:
@@ -310,20 +324,13 @@ class DynamicMemoryModel(pl.LightningModule):
                 y = torch.stack(y).to(self.device)
                 y_hat = self.forward(x.float())
                 loss = self.loss(y_hat['out'], y)
-        elif self.ewc:
-            if self.prepareewc:  # first tim ewc update.
-                logging.info('EWC preparation...')
-                dl = DataLoader(CatsinomDataset(self.hparams.root_dir,
-                                                self.hparams.EWC_dataset,
-                                                iterations=100,
-                                                batch_size=8,
-                                                split=['base_train']),
-                                batch_size=8, num_workers=2)
-                self.ewc = utils.EWC(self.model, dl)
-                # self.loss = lambda x,y,m: bc(x, y) + self.hparams.EWC_lambda * self.ewc.penalty(m)
-                logging.info('EWC preparation, done!')
-                self.prepareewc = False
-
+        elif self.useewc:
+            if 'EWC_bn_off' in self.hparams:
+                for m in self.model.modules():
+                    if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+                        m.eval()
+            y_hat = self.forward(x.float())
+            loss = self.ewcloss(y_hat['out'], y, self.ewc.penalty(self.model))
         else:
             if self.hparams.task == 'lidc':
                 x = list(i.to(self.device) for i in x)
