@@ -612,8 +612,8 @@ def trained_model(hparams, training=True):
             df_cache = None
 
     # always get the last version
-    max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
-    if os.path.exists(utils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version)):
+    if os.path.exists(utils.LOGGING_FOLDER + exp_name):
+        max_version = max([int(x.split('_')[1]) for x in os.listdir(utils.LOGGING_FOLDER + exp_name)])
         logs = pd.read_csv(utils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version))
     else:
         logs = None
