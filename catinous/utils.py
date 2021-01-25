@@ -274,7 +274,8 @@ class EWC(object):
             x, y, scanner, filepath = input
             self.model.zero_grad()
             x = variable(x.float())
-            output = self.model(x).view(1, -1)
+            output = self.model(x)
+            output = output['out'].view(1, -1)
             label = output.max(1)[1].view(-1)
             loss = F.nll_loss(F.log_softmax(output, dim=1), label)
             loss.backward()
@@ -290,7 +291,7 @@ class EWC(object):
         for n, p in model.named_parameters():
             _loss = self._precision_matrices[n] * (p - self._means[n]) ** 2
             loss += _loss.sum()
-        print('ewcloss: %f' % loss.data.cpu().numpy())
+        #print('ewcloss: %f' % loss.data.cpu().numpy())
         return loss
 
 
@@ -317,7 +318,6 @@ class CrossEntropyWithEWCLoss(torch.nn.CrossEntropyLoss):
     def forward(self, input, target, penalty):
         ce = F.cross_entropy(input, target,
                                            self.weight,
-                                           pos_weight=self.pos_weight,
                                            reduction=self.reduction)
         return ce + self.lambda_p * penalty
 
