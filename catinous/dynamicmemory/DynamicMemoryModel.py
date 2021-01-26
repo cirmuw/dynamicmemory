@@ -332,8 +332,15 @@ class DynamicMemoryModel(pl.LightningModule):
                 for m in self.model.modules():
                     if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
                         m.eval()
-            y_hat = self.forward(x.float())
-            loss = self.ewcloss(y_hat['out'], y, self.ewc.penalty(self.model))
+            if self.haparams.task=='lidc':
+                x = list(i.to(self.device) for i in x)
+                targets = [{k: v.to(self.device) for k, v in t.items()} for t in y]
+                loss_dict = self.forward_lidc(x, targets)
+                loss = sum(l for l in loss_dict.values())
+                loss = loss + torch.tensor([self.hparams.EWC_lambda]) * self.ewc.penalty(self.model)
+            else:
+                y_hat = self.forward(x.float())
+                loss = self.ewcloss(y_hat['out'], y, self.ewc.penalty(self.model))
         else:
             if self.hparams.task == 'lidc':
                 x = list(i.to(self.device) for i in x)

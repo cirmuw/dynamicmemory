@@ -245,14 +245,19 @@ def get_ap_for_res(hparams, split='test', shifts=None):
             df_aps = df_aps.append(aps)
     return df_aps
 
-def eval_lidc_cont(hparams, seeds, split='test', shifts=None):
+def eval_lidc_cont(hparams, seeds=None, split='test', shifts=None):
     outputfile = f'/project/catinous/results/lidc/{cutils.get_expname(hparams)}_meanaverageprecision.csv'
-
     seeds_aps = pd.DataFrame()
-    for i, seed in enumerate(seeds):
-        hparams['seed'] = seed
-        hparams['run_postfix'] = i+1
+
+    if seeds is not None:
+        for i, seed in enumerate(seeds):
+            hparams['seed'] = seed
+            hparams['run_postfix'] = i+1
+            aps = get_ap_for_res(hparams, split=split, shifts=shifts)
+            aps['seed'] = seed
+            seeds_aps = seeds_aps.append(aps)
+    else:
         aps = get_ap_for_res(hparams, split=split, shifts=shifts)
-        aps['seed'] = seed
         seeds_aps = seeds_aps.append(aps)
+
     seeds_aps.to_csv(outputfile, index=False)
