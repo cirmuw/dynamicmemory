@@ -27,7 +27,7 @@ from catinous.dynamicmemory.DynamicMemory import DynamicMemory, MemoryItem
 
 class DynamicMemoryModel(pl.LightningModule):
 
-    def __init__(self, hparams={}, device=torch.device('cpu'), verbose=False):
+    def __init__(self, hparams={}, device=torch.device('cpu'), verbose=False, training=True):
         super(DynamicMemoryModel, self).__init__()
         self.hparams = utils.default_params(self.get_default_hparams(), hparams)
         self.hparams = argparse.Namespace(**self.hparams)
@@ -77,7 +77,7 @@ class DynamicMemoryModel(pl.LightningModule):
             self.scanner_checkpoints[scanner] = False
 
         #Initialize memory and hooks
-        if self.hparams.use_memory and self.hparams.continuous:
+        if self.hparams.use_memory and self.hparams.continuous and training:
             self.init_memory_and_gramhooks()
         else:
             if verbose:
@@ -588,7 +588,7 @@ def trained_model(hparams, training=True):
         device = torch.device('cuda')
     else:
         device = torch.device('cpu')
-    model = DynamicMemoryModel(hparams=hparams, device=device)
+    model = DynamicMemoryModel(hparams=hparams, device=device, training=training)
     hparams = utils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
     exp_name = utils.get_expname(hparams)
     print('expname', exp_name)
