@@ -207,7 +207,7 @@ class DynamicMemory():
                         y.append(domain_items[k].target)
                         j += 1
                         batchsize -= 1
-                        ci.traincounter += 1
+                        domain_items[k].traincounter += 1
 
         if batchsize>0:
             random.shuffle(self.memorylist)
