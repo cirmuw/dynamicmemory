@@ -251,6 +251,8 @@ class DynamicMemoryModel(pl.LightningModule):
                     imgsx = torch.stack(x)
                     _ = self.stylemodel(imgsx.float())
                 else:
+                    if 'style_tile' in self.hparams:
+                        print(x.shape, 'for style')
                     _ = self.stylemodel(x.float())
                 if self.forcemisclassified:
                     if self.hparams.task == 'lidc':
