@@ -37,7 +37,10 @@ class DynamicMemoryModel(pl.LightningModule):
         #load model according to hparams
         if 'stylemodel' in self.hparams:
             if 'stylelayers' in self.hparams:
-                self.model, self.stylemodel, self.gramlayers = utils.load_model_stylemodel(self.hparams.model, stylelayers=self.hparams.stylelayers)
+                if 'style_tile' in self.hparams:
+                    self.model, self.stylemodel, self.gramlayers = utils.load_model_stylemodel(self.hparams.model, stylelayers=self.hparams.stylelayers, styletile=True)
+                else:
+                    self.model, self.stylemodel, self.gramlayers = utils.load_model_stylemodel(self.hparams.model, stylelayers=self.hparams.stylelayers)
             else:
                 self.model, self.stylemodel, self.gramlayers = utils.load_model_stylemodel(self.hparams.model)
             self.stylemodel.to(device)

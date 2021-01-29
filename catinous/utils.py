@@ -216,7 +216,7 @@ def load_model(modelstr: str):
     return model, gramlayers
 
 
-def load_model_stylemodel(modelstr: str, stylelayers=2):
+def load_model_stylemodel(modelstr: str, stylelayers=2, styletile=False):
     stylemodel = models.resnet50(pretrained=True)
 
     if modelstr == 'resnet':
@@ -227,8 +227,8 @@ def load_model_stylemodel(modelstr: str, stylelayers=2):
         model = models.segmentation.fcn_resnet50(num_classes=4)
         model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
-        #stylemodel.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-
+        if not styletile:
+            stylemodel.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     elif modelstr == 'rnn':
         num_classes = 3  # 0=background, 1=begnin, 2=malignant
         # load a model pre-trained pre-trained on COCO
