@@ -418,7 +418,7 @@ class DynamicMemoryModel(pl.LightningModule):
                           num_workers=1)
         elif self.hparams.task == 'lidc':
             return DataLoader(LIDCBatch(self.hparams.datasetfile,
-                                          split='val', validation=True),
+                                          split='val', validation=True, res=self.hparams.order),
                           batch_size=4,
                           num_workers=2,
                           collate_fn=utils.collate_fn)

@@ -20,8 +20,13 @@ class BatchDataset(Dataset):
         self.df = df.loc[selection]
         self.df = self.df.reset_index()
 
-        if res is not None:
-            self.df = self.df.loc[self.df.scanner == res]
+        if type(res) is list:
+            selection = np.any([df.scanner == x for x in res], axis=0)
+        else:
+            selection = df.scanner == res
+
+        self.df = df.loc[selection]
+        self.df = self.df.reset_index()
 
         if iterations is not None:
             self.df = self.df.sample(iterations * batch_size, replace=True, random_state=seed)
