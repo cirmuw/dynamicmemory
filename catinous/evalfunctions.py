@@ -205,9 +205,9 @@ def ap_model(model, split='test'):
                 precision[res].append(overall_true_pos[k] / (overall_false_pos[k] + overall_true_pos[k]))
     return recalls, precision
 
-def recall_precision_to_ap(recalls, precisions):
+def recall_precision_to_ap(recalls, precisions, scanners=['ges', 'geb', 'sie', 'time_siemens']):
     aps = dict()
-    for res in ['ges', 'geb', 'sie', 'time_siemens']:
+    for res in scanners:
         prec = np.array(precisions[res])
         rec = np.array(recalls[res])
         ap = []
@@ -220,10 +220,10 @@ def recall_precision_to_ap(recalls, precisions):
         aps[res] = np.array(ap).mean()
     return aps
 
-def get_ap_for_res(hparams, split='test', shifts=None):
+def get_ap_for_res(hparams, split='test', shifts=None, scanners=['ges', 'geb', 'sie', 'time_siemens']):
     device = torch.device('cuda')
     recalls, precisions, model = ap_model_hparams(hparams, split)
-    aps = recall_precision_to_ap(recalls, precisions)
+    aps = recall_precision_to_ap(recalls, precisions, scanners=scanners)
     df_aps = pd.DataFrame([aps])
 
     if shifts is not None:
@@ -245,7 +245,7 @@ def get_ap_for_res(hparams, split='test', shifts=None):
             df_aps = df_aps.append(aps)
     return df_aps
 
-def eval_lidc_cont(hparams, seeds=None, split='test', shifts=None, postfixes=None):
+def eval_lidc_cont(hparams, seeds=None, split='test', shifts=None, postfixes=None, scanners=['ges', 'geb', 'sie', 'time_siemens']):
     outputfile = f'/project/catinous/results/lidc/{cutils.get_expname(hparams)}_meanaverageprecision.csv'
     seeds_aps = pd.DataFrame()
 
@@ -253,13 +253,13 @@ def eval_lidc_cont(hparams, seeds=None, split='test', shifts=None, postfixes=Non
         for i, seed in enumerate(seeds):
             hparams['seed'] = seed
             hparams['run_postfix'] = i+1
-            aps = get_ap_for_res(hparams, split=split, shifts=shifts)
+            aps = get_ap_for_res(hparams, split=split, shifts=shifts, scanners=scanners)
             aps['seed'] = seed
             seeds_aps = seeds_aps.append(aps)
     else:
         for i in range(postfixes):
             hparams['run_postfix'] = i+1
-            aps = get_ap_for_res(hparams, split=split, shifts=shifts)
+            aps = get_ap_for_res(hparams, split=split, shifts=shifts, scanners=scanners)
             seeds_aps = seeds_aps.append(aps)
 
     seeds_aps.to_csv(outputfile, index=False)
