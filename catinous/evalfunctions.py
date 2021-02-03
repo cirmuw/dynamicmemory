@@ -118,12 +118,16 @@ def ap_model_hparams(hparams, split='test'):
     return recalls, precision, model
 
 
-def ap_model(model, split='test'):
-    recalls = {'ges': [], 'geb': [], 'sie': [], 'time_siemens': []}
-    precision = {'ges': [], 'geb': [], 'sie': [], 'time_siemens': []}
+def ap_model(model, split='test', scanners=['ges', 'geb', 'sie', 'time_siemens']):
+    recalls = dict()
+    precision = dict()
+    for s in scanners:
+        recalls[s] = []
+        precision[s] = []
+
     device = torch.device('cuda')
 
-    for res in ['ges', 'geb', 'sie', 'time_siemens']:
+    for res in scanners:
         ds_test = LIDCBatch('/project/catinous/lungnodulesfinalpatientsplit.csv',
                             cropped_to=(288, 288), split=split, res=res, validation=True)
 
