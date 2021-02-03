@@ -376,17 +376,20 @@ class DynamicMemoryModel(pl.LightningModule):
             if self.hparams.task == 'brainage':
                 return DataLoader(BrainAgeContinuous(self.hparams.datasetfile,
                                                                    transition_phase_after=self.hparams.transition_phase_after,
-                                                     seed=self.hparams.seed),
+                                                     seed=self.hparams.seed,
+                                                 order=self.hparams.order),
                                   batch_size=self.hparams.batch_size, num_workers=8, drop_last=True)
             elif self.hparams.task == 'lidc':
                 return DataLoader(LIDCContinuous(self.hparams.datasetfile,
                                                      transition_phase_after=self.hparams.transition_phase_after,
-                                                 seed=self.hparams.seed),
+                                                 seed=self.hparams.seed,
+                                                 order=self.hparams.order),
                                   batch_size=self.hparams.batch_size, num_workers=8, collate_fn=utils.collate_fn)
             elif self.hparams.task == 'cardiac':
                 return DataLoader(CardiacContinuous(self.hparams.datasetfile,
                                                  transition_phase_after=self.hparams.transition_phase_after,
-                                                    seed=self.hparams.seed),
+                                                    seed=self.hparams.seed,
+                                                 order=self.hparams.order),
                                   batch_size=self.hparams.batch_size, num_workers=8, drop_last=True)
         else:
             if self.hparams.task == 'brainage':
@@ -399,7 +402,7 @@ class DynamicMemoryModel(pl.LightningModule):
                 return DataLoader(LIDCBatch(self.hparams.datasetfile,
                                                   iterations=self.hparams.noncontinuous_steps,
                                                   batch_size=self.hparams.batch_size,
-                                                  split=self.hparams.noncontinuous_train_splits),
+                                                  split=self.hparams.noncontinuous_train_splits, res=self.hparams.order),
                                   batch_size=self.hparams.batch_size, num_workers=8, collate_fn=utils.collate_fn)
             elif self.hparams.task == 'cardiac':
                 return DataLoader(CardiacBatch(self.hparams.datasetfile,
