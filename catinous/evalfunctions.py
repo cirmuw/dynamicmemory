@@ -242,8 +242,8 @@ def get_ap_for_res(hparams, split='test', shifts=None, scanners=['ges', 'geb', '
             model.freeze()
             print('starting to eval on shiftmodel', s)
 
-            recalls, precisions = ap_model(model, split)
-            aps = recall_precision_to_ap(recalls, precisions)
+            recalls, precisions = ap_model(model, split, scanners=scanners)
+            aps = recall_precision_to_ap(recalls, precisions, scanners=scanners)
             aps = pd.DataFrame([aps])
             aps['shift'] = s
             df_aps = df_aps.append(aps)
