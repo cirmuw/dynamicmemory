@@ -109,12 +109,12 @@ def eval_cardiac_batch(hparams, outfile):
     df_results.to_csv(outfile, index=False)
 
 
-def ap_model_hparams(hparams, split='test'):
+def ap_model_hparams(hparams, split='test', scanners=['ges', 'geb', 'sie', 'time_siemens']):
     device = torch.device('cuda')
     model, logs, df_mem, expname = dmodel.trained_model(hparams, training=False)
     model.to(device)
     model.eval()
-    recalls, precision = ap_model(model, split)
+    recalls, precision = ap_model(model, split, scanners=scanners)
     return recalls, precision, model
 
 
@@ -226,7 +226,7 @@ def recall_precision_to_ap(recalls, precisions, scanners=['ges', 'geb', 'sie', '
 
 def get_ap_for_res(hparams, split='test', shifts=None, scanners=['ges', 'geb', 'sie', 'time_siemens']):
     device = torch.device('cuda')
-    recalls, precisions, model = ap_model_hparams(hparams, split)
+    recalls, precisions, model = ap_model_hparams(hparams, split, scanners=scanners)
     aps = recall_precision_to_ap(recalls, precisions, scanners=scanners)
     df_aps = pd.DataFrame([aps])
 
