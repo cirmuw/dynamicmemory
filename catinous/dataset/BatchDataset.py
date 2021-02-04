@@ -277,8 +277,8 @@ class LIDCBatch(BatchDataset):
                 shiftx_aug = 0
                 shifty_aug = 0
             else:
-                shiftx_aug = random.randint(-20, 20)
-                shifty_aug = random.randint(-20, 20)
+                shiftx_aug = random.randint(-100, 100)
+                shifty_aug = random.randint(-100, 100)
 
             img = self.load_image(elem.image, shiftx_aug, shifty_aug)
             annotation = self.load_annotation(elem, shiftx_aug, shifty_aug)
