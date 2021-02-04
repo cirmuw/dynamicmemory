@@ -130,17 +130,14 @@ class LIDCBatch(BatchDataset):
             x2 -= s2
             y2 -= s1
 
-            print(dcm.Rows, dcm.Columns, img.shape)
 
             if x<0:
-                print('x smaller 0')
                 s2 -= (x*-1) + 5
                 e2 -= (x*-1) + 5
 
                 x2 = 5+(x2-x)
                 x = 5
             elif x>self.cropped_to[1]:
-                print('x bigger crop')
                 s2 += (x2-self.cropped_to[1]+5)
                 e2 += (x2-self.cropped_to[1]+5)
                 if e2>dcm.Rows:
