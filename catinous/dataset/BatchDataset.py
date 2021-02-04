@@ -20,13 +20,14 @@ class BatchDataset(Dataset):
         self.df = df.loc[selection]
         self.df = self.df.reset_index()
 
-        if type(res) is list:
-            selection = np.any([df.scanner == x for x in res], axis=0)
-        else:
-            selection = df.scanner == res
+        if res is not None:
+            if type(res) is list:
+                selection = np.any([self.df.scanner == x for x in res], axis=0)
+            else:
+                selection = self.df.scanner == res
 
-        self.df = df.loc[selection]
-        self.df = self.df.reset_index()
+            self.df = self.df.loc[selection]
+            self.df = self.df.reset_index()
 
         if iterations is not None:
             self.df = self.df.sample(iterations * batch_size, replace=True, random_state=seed)
@@ -110,12 +111,6 @@ class LIDCBatch(BatchDataset):
 
 
         if self.cropped_to is not None:
-            x -= (dcm.Rows - self.cropped_to[0]) / 2
-            y -= (dcm.Columns - self.cropped_to[1]) / 2
-            x2 -= (dcm.Rows - self.cropped_to[0]) / 2
-            y2 -= (dcm.Columns - self.cropped_to[1]) / 2
-
-
             w = img.shape[0]
             h = img.shape[1]
             x_shift = int((w - self.cropped_to[0]) / 2)
@@ -125,21 +120,35 @@ class LIDCBatch(BatchDataset):
             s2 = y_shift
             e2 = int(s2 + self.cropped_to[1])
 
+            #x -= (dcm.Rows - self.cropped_to[0]) / 2
+            #y -= (dcm.Columns - self.cropped_to[1]) / 2
+            #x2 -= (dcm.Rows - self.cropped_to[0]) / 2
+            #y2 -= (dcm.Columns - self.cropped_to[1]) / 2
+
+            x -= s2
+            y -= s1
+            x2 -= s2
+            y2 -= s1
+
+            print(dcm.Rows, dcm.Columns, img.shape)
+
             if x<0:
+                print('x smaller 0')
                 s2 -= (x*-1) + 5
                 e2 -= (x*-1) + 5
 
                 x2 = 5+(x2-x)
                 x = 5
-            elif x>self.cropped_to[0]:
-                s2 += (x2-self.cropped_to[0]+5)
-                e2 += (x2-self.cropped_to[0]+5)
+            elif x>self.cropped_to[1]:
+                print('x bigger crop')
+                s2 += (x2-self.cropped_to[1]+5)
+                e2 += (x2-self.cropped_to[1]+5)
                 if e2>dcm.Rows:
                     s2 -= (e2-dcm.Rows)
                     e2 = min(e2,dcm.Rows)
 
-                x = self.cropped_to[0] - (x2-x) - 5
-                x2 = self.cropped_to[0]-5
+                x = self.cropped_to[1] - (x2-x) - 5
+                x2 = self.cropped_to[1]-5
 
             if y<0:
                 s1 += (y * -1) + 5
@@ -147,6 +156,8 @@ class LIDCBatch(BatchDataset):
 
                 y2 = 5 + (y2 - y)
                 y = 5
+
+
 
             im_crop = img[int(s1):int(e1), int(s2):int(e2)]
             im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
@@ -165,7 +176,7 @@ class LIDCBatch(BatchDataset):
         ys = []
         y2s = []
         for i, row in self.df_multiplenodules.loc[self.df_multiplenodules.image==elem.image].iterrows():
-
+            print('multiple')
             x1_new = row.x1-s2
             x2_new = row.x2-s2
 
@@ -208,10 +219,10 @@ class LIDCBatch(BatchDataset):
         y2 = elem.y2
 
         if self.cropped_to is not None:
-            x -= (dcm.Rows - self.cropped_to[0]) / 2
-            y -= (dcm.Columns - self.cropped_to[1]) / 2
-            x2 -= (dcm.Rows - self.cropped_to[0]) / 2
-            y2 -= (dcm.Columns - self.cropped_to[1]) / 2
+            x -= (dcm.Columns - self.cropped_to[0]) / 2
+            y -= (dcm.Rows - self.cropped_to[1]) / 2
+            x2 -= (dcm.Columns - self.cropped_to[0]) / 2
+            y2 -= (dcm.Rows - self.cropped_to[1]) / 2
 
         y -= shiftx_aug
         x -= shifty_aug
