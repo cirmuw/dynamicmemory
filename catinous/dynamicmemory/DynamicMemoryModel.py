@@ -402,7 +402,7 @@ class DynamicMemoryModel(pl.LightningModule):
                 return DataLoader(LIDCBatch(self.hparams.datasetfile,
                                                   iterations=self.hparams.noncontinuous_steps,
                                                   batch_size=self.hparams.batch_size,
-                                                  split=self.hparams.noncontinuous_train_splits, res=self.hparams.order),
+                                                  split=self.hparams.noncontinuous_train_splits, res=self.hparams.scanner),
                                   batch_size=self.hparams.batch_size, num_workers=8, collate_fn=utils.collate_fn)
             elif self.hparams.task == 'cardiac':
                 return DataLoader(CardiacBatch(self.hparams.datasetfile,
