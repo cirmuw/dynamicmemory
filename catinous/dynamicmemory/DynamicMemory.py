@@ -188,10 +188,11 @@ class DynamicMemory():
 
         if forceditems is not None:
             for ci in forceditems:
-                x[j] = ci.img
-                y.append(ci.target)
-                ci.traincounter += 1
-                j += 1
+                if j<batchsize:
+                    x[j] = ci.img
+                    y.append(ci.target)
+                    ci.traincounter += 1
+                    j += 1
 
             batchsize -= j
 

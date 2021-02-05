@@ -66,8 +66,8 @@ class LIDCBatch(BatchDataset):
         self.cropped_to = cropped_to
         self.validation = validation
 
-        if validation:
-            self.df = self.df.sort_values('patient_id').reset_index(drop=True)
+        #if validation:
+        #    self.df = self.df.sort_values('patient_id').reset_index(drop=True)
 
         self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
 
