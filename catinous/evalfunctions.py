@@ -109,16 +109,16 @@ def eval_cardiac_batch(hparams, outfile):
     df_results.to_csv(outfile, index=False)
 
 
-def ap_model_hparams(hparams, split='test', scanners=['ges', 'geb', 'sie', 'time_siemens']):
+def ap_model_hparams(hparams, split='test', scanners=['ges', 'geb', 'sie', 'time_siemens'], dspath='/project/catinous/lungnodulesfinalpatientsplit.csv'):
     device = torch.device('cuda')
     model, logs, df_mem, expname = dmodel.trained_model(hparams, training=False)
     model.to(device)
     model.eval()
-    recalls, precision = ap_model(model, split, scanners=scanners)
+    recalls, precision = ap_model(model, split, scanners=scanners, dspath=dspath)
     return recalls, precision, model
 
 
-def ap_model(model, split='test', scanners=['ges', 'geb', 'sie', 'time_siemens']):
+def ap_model(model, split='test', scanners=['ges', 'geb', 'sie', 'time_siemens'], dspath='/project/catinous/lungnodulesfinalpatientsplit.csv'):
     recalls = dict()
     precision = dict()
     for s in scanners:
@@ -128,7 +128,7 @@ def ap_model(model, split='test', scanners=['ges', 'geb', 'sie', 'time_siemens']
     device = torch.device('cuda')
 
     for res in scanners:
-        ds_test = LIDCBatch('/project/catinous/lungnodulesfinalpatientsplit.csv',
+        ds_test = LIDCBatch(dspath,
                             cropped_to=(288, 288), split=split, res=res, validation=True)
 
         iou_thres = 0.2
@@ -224,9 +224,9 @@ def recall_precision_to_ap(recalls, precisions, scanners=['ges', 'geb', 'sie', '
         aps[res] = np.array(ap).mean()
     return aps
 
-def get_ap_for_res(hparams, split='test', shifts=None, scanners=['ges', 'geb', 'sie', 'time_siemens']):
+def get_ap_for_res(hparams, split='test', shifts=None, scanners=['ges', 'geb', 'sie', 'time_siemens'], dspath='/project/catinous/lungnodulesfinalpatientsplit.csv'):
     device = torch.device('cuda')
-    recalls, precisions, model = ap_model_hparams(hparams, split, scanners=scanners)
+    recalls, precisions, model = ap_model_hparams(hparams, split, scanners=scanners, dspath=dspath)
     aps = recall_precision_to_ap(recalls, precisions, scanners=scanners)
     df_aps = pd.DataFrame([aps])
 
@@ -242,14 +242,15 @@ def get_ap_for_res(hparams, split='test', shifts=None, scanners=['ges', 'geb', '
             model.freeze()
             print('starting to eval on shiftmodel', s)
 
-            recalls, precisions = ap_model(model, split, scanners=scanners)
+            recalls, precisions = ap_model(model, split, scanners=scanners, dspath=dspath)
             aps = recall_precision_to_ap(recalls, precisions, scanners=scanners)
             aps = pd.DataFrame([aps])
             aps['shift'] = s
             df_aps = df_aps.append(aps)
     return df_aps
 
-def eval_lidc_cont(hparams, seeds=None, split='test', shifts=None, postfixes=None, scanners=['ges', 'geb', 'sie', 'time_siemens']):
+def eval_lidc_cont(hparams, seeds=None, split='test', shifts=None, postfixes=None, scanners=['ges', 'geb', 'sie', 'time_siemens'], dspath='/project/catinous/lungnodulesfinalpatientsplit.csv'):
+    print('eval for', scanners)
     outputfile = f'/project/catinous/results/lidc/{cutils.get_expname(hparams)}_meanaverageprecision.csv'
     seeds_aps = pd.DataFrame()
 
@@ -257,13 +258,13 @@ def eval_lidc_cont(hparams, seeds=None, split='test', shifts=None, postfixes=Non
         for i, seed in enumerate(seeds):
             hparams['seed'] = seed
             hparams['run_postfix'] = i+1
-            aps = get_ap_for_res(hparams, split=split, shifts=shifts, scanners=scanners)
+            aps = get_ap_for_res(hparams, split=split, shifts=shifts, scanners=scanners, dspath=dspath)
             aps['seed'] = seed
             seeds_aps = seeds_aps.append(aps)
     else:
         for i in range(postfixes):
             hparams['run_postfix'] = i+1
-            aps = get_ap_for_res(hparams, split=split, shifts=shifts, scanners=scanners)
+            aps = get_ap_for_res(hparams, split=split, shifts=shifts, scanners=scanners, dspath=dspath)
             seeds_aps = seeds_aps.append(aps)
 
     seeds_aps.to_csv(outputfile, index=False)

@@ -14,6 +14,7 @@ class ContinuousDataset(Dataset):
         df = pd.read_csv(datasetfile)
         assert (set(['train']).issubset(df.split.unique()))
         np.random.seed(seed)
+        print(order)
         res_dfs = list()
         for r in order:
             res_df = df.loc[df.scanner == r]
@@ -28,6 +29,7 @@ class ContinuousDataset(Dataset):
         for j in range(len(res_dfs) - 1):
             old = res_dfs[j]
             new = res_dfs[j + 1]
+
 
             old_end = int((len(old) - new_idx) * transition_phase_after) + new_idx
             if combds is None:
