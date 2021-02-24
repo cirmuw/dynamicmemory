@@ -121,9 +121,6 @@ class LIDCContinuous(ContinuousDataset):
         x2 = elem.x2
         y2 = elem.y2
 
-        print(x, y, x2, y2, self.cropped_to)
-
-        print(dcm.GetSize(), 'dcm size')
         if self.cropped_to is not None:
             x -= (dcm.GetSize()[0] - self.cropped_to[0]) / 2
             y -= (dcm.GetSize()[1] - self.cropped_to[1]) / 2
@@ -134,8 +131,6 @@ class LIDCContinuous(ContinuousDataset):
         x -= shifty_aug
         y2 -= shiftx_aug
         x2 -= shifty_aug
-
-        print(x, y, x2, y2, self.cropped_to)
 
         xs = []
         x2s = []
