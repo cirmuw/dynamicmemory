@@ -87,47 +87,55 @@ class LIDCContinuous(ContinuousDataset):
         self.cropped_to = cropped_to
         self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
 
-
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        try:
-            img = pyd.read_file(path).pixel_array
-        except Exception as e:
-            img = pyd.read_file(path, force=True)
-            img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
-            img = img.pixel_array
-            
+        # try:
+        #    img = pyd.read_file(path).pixel_array
+        # except Exception as e:
+        #    img = pyd.read_file(path, force=True)
+        #    img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
+        #    img = img.pixel_array
+        dcm = sitk.ReadImage(path)
+        img = sitk.GetArrayFromImage(dcm)
+
         if self.cropped_to is not None:
-            w = img.shape[0]
+            w = img.shape[1]
             s1 = int((w - self.cropped_to[0]) / 2)
             e1 = int(s1 + self.cropped_to[0])
 
-            h = img.shape[1]
+            h = img.shape[2]
             s2 = int((h - self.cropped_to[1]) / 2)
             e2 = int(s2 + self.cropped_to[1])
-            img = img[s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
+            img = img[:, s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
         img = mut.intensity_window(img, low=-1024, high=1500)
         img = mut.norm01(img)
 
         # return img[None, :, :]
         return np.tile(img, [3, 1, 1])
 
-    def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, ):
-        dcm = pyd.read_file(elem.image, force=True)
+    def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0):
+        # dcm = pyd.read_file(elem.image, force=True)
+        dcm = sitk.ReadImage(elem.image)
+
         x = elem.x1
         y = elem.y1
         x2 = elem.x2
         y2 = elem.y2
 
+        print(x, y, x2, y2, self.cropped_to)
+
+        print(dcm.GetSize(), 'dcm size')
         if self.cropped_to is not None:
-            x -= (dcm.Rows - self.cropped_to[0]) / 2
-            y -= (dcm.Columns - self.cropped_to[1]) / 2
-            x2 -= (dcm.Rows - self.cropped_to[0]) / 2
-            y2 -= (dcm.Columns - self.cropped_to[1]) / 2
+            x -= (dcm.GetSize()[0] - self.cropped_to[0]) / 2
+            y -= (dcm.GetSize()[1] - self.cropped_to[1]) / 2
+            x2 -= (dcm.GetSize()[0] - self.cropped_to[0]) / 2
+            y2 -= (dcm.GetSize()[1] - self.cropped_to[1]) / 2
 
         y -= shiftx_aug
         x -= shifty_aug
         y2 -= shiftx_aug
         x2 -= shifty_aug
+
+        print(x, y, x2, y2, self.cropped_to)
 
         xs = []
         x2s = []
@@ -155,17 +163,17 @@ class LIDCContinuous(ContinuousDataset):
             box[0, 2] = x2
             box[0, 3] = y2
         else:
-            box = np.zeros((len(xs), 4))
-            #box[0, 0] = x
-            #box[0, 1] = y
-            #box[0, 2] = x2
-            #box[0, 3] = y2
+            box = np.zeros((len(xs) + 1, 4))
+            box[0, 0] = x
+            box[0, 1] = y
+            box[0, 2] = x2
+            box[0, 3] = y2
 
             for j, x in enumerate(xs):
-                box[j, 0] = x
-                box[j, 1] = ys[j]
-                box[j, 2] = x2s[j]
-                box[j, 3] = y2s[j]
+                box[j + 1, 0] = x
+                box[j + 1, 1] = ys[j]
+                box[j + 1, 2] = x2s[j]
+                box[j + 1, 3] = y2s[j]
 
         return box
 

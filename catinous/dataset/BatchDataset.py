@@ -73,22 +73,24 @@ class LIDCBatch(BatchDataset):
 
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        try:
-            img = pyd.read_file(path).pixel_array
-        except Exception as e:
-            img = pyd.read_file(path, force=True)
-            img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
-            img = img.pixel_array
+        #try:
+        #    img = pyd.read_file(path).pixel_array
+        #except Exception as e:
+        #    img = pyd.read_file(path, force=True)
+        #    img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
+        #    img = img.pixel_array
+        dcm = sitk.ReadImage(path)
+        img = sitk.GetArrayFromImage(dcm)
 
         if self.cropped_to is not None:
-            w = img.shape[0]
+            w = img.shape[1]
             s1 = int((w - self.cropped_to[0]) / 2)
             e1 = int(s1 + self.cropped_to[0])
 
-            h = img.shape[1]
+            h = img.shape[2]
             s2 = int((h - self.cropped_to[1]) / 2)
             e2 = int(s2 + self.cropped_to[1])
-            img = img[s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
+            img = img[:, s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
         img = mut.intensity_window(img, low=-1024, high=1500)
         img = mut.norm01(img)
 
@@ -96,23 +98,19 @@ class LIDCBatch(BatchDataset):
         return np.tile(img, [3, 1, 1])
 
     def load_image_validation(self, elem):
-        try:
-            dcm = pyd.read_file(elem.image)
-            img = dcm.pixel_array
-        except Exception as e:
-            dcm = pyd.read_file(elem.image, force=True)
-            dcm.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
-            img = dcm.pixel_array
+        #dcm = pyd.read_file(elem.image)
+        #img = dcm.pixel_array
+        dcm = sitk.ReadImage(elem.image)
+        img = sitk.GetArrayFromImage(dcm)
 
         x = elem.x1
         y = elem.y1
         x2 = elem.x2
         y2 = elem.y2
 
-
         if self.cropped_to is not None:
-            w = img.shape[0]
-            h = img.shape[1]
+            w = img.shape[1]
+            h = img.shape[2]
             x_shift = int((w - self.cropped_to[0]) / 2)
             y_shift = int((h - self.cropped_to[1]) / 2)
             s1 = x_shift
@@ -140,9 +138,9 @@ class LIDCBatch(BatchDataset):
             elif x>self.cropped_to[1]:
                 s2 += (x2-self.cropped_to[1]+5)
                 e2 += (x2-self.cropped_to[1]+5)
-                if e2>dcm.Rows:
-                    s2 -= (e2-dcm.Rows)
-                    e2 = min(e2,dcm.Rows)
+                if e2>dcm.GetSize()[0]:
+                    s2 -= (e2-dcm.GetSize()[0])
+                    e2 = min(e2,dcm.GetSize()[0])
 
                 x = self.cropped_to[1] - (x2-x) - 5
                 x2 = self.cropped_to[1]-5
@@ -156,10 +154,11 @@ class LIDCBatch(BatchDataset):
 
 
 
-            im_crop = img[int(s1):int(e1), int(s2):int(e2)]
+            im_crop = img[:, int(s1):int(e1), int(s2):int(e2)]
             im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
             try:
                 im_crop = mut.norm01(im_crop)
+                pass
             except Exception as e:
                 print(im_crop.shape, s1, e1, s2, e2, y, y2, elem.image)
                 raise e
@@ -209,22 +208,30 @@ class LIDCBatch(BatchDataset):
         return np.tile(im_crop, [3, 1, 1]), box
 
     def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0, ):
-        dcm = pyd.read_file(elem.image, force=True)
+        #dcm = pyd.read_file(elem.image, force=True)
+        dcm = sitk.ReadImage(elem.image)
+
         x = elem.x1
         y = elem.y1
         x2 = elem.x2
         y2 = elem.y2
 
+        print(x, y, x2, y2, self.cropped_to)
+
+        print(dcm.GetSize(), 'dcm size')
         if self.cropped_to is not None:
-            x -= (dcm.Columns - self.cropped_to[0]) / 2
-            y -= (dcm.Rows - self.cropped_to[1]) / 2
-            x2 -= (dcm.Columns - self.cropped_to[0]) / 2
-            y2 -= (dcm.Rows - self.cropped_to[1]) / 2
+            x -= (dcm.GetSize()[0] - self.cropped_to[0]) / 2
+            y -= (dcm.GetSize()[1] - self.cropped_to[1]) / 2
+            x2 -= (dcm.GetSize()[0] - self.cropped_to[0]) / 2
+            y2 -= (dcm.GetSize()[1] - self.cropped_to[1]) / 2
 
         y -= shiftx_aug
         x -= shifty_aug
         y2 -= shiftx_aug
         x2 -= shifty_aug
+
+        print(x, y, x2, y2, self.cropped_to)
+
 
         xs = []
         x2s = []
@@ -292,7 +299,8 @@ class LIDCBatch(BatchDataset):
         target['iscrowd'] = torch.zeros((len(annotation)), dtype=torch.int64)
 
         return torch.as_tensor(img, dtype=torch.float32), target, elem.scanner, elem.image
-
+        #return img, target, elem.scanner, elem.image
+        
 class CardiacBatch(BatchDataset):
 
     def __init__(self, datasetfile, split=['base'], iterations=None, batch_size=None, res=None, seed=None):
