@@ -91,7 +91,7 @@ class LIDCBatch(BatchDataset):
             s2 = int((h - self.cropped_to[1]) / 2)
             e2 = int(s2 + self.cropped_to[1])
             img = img[:, s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
-        img = mut.intensity_window(img, low=-1024, high=1500)
+        img = mut.intensity_window(img, low=-1024, high=1024)
         img = mut.norm01(img)
 
         # return img[None, :, :]
@@ -155,7 +155,7 @@ class LIDCBatch(BatchDataset):
 
 
             im_crop = img[:, int(s1):int(e1), int(s2):int(e2)]
-            im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
+            im_crop = mut.intensity_window(im_crop, low=-1024, high=1024)
             try:
                 im_crop = mut.norm01(im_crop)
                 pass
@@ -164,7 +164,7 @@ class LIDCBatch(BatchDataset):
                 raise e
         else:
             im_crop = img
-            im_crop = mut.intensity_window(im_crop, low=-1024, high=1500)
+            im_crop = mut.intensity_window(im_crop, low=-1024, high=1024)
             im_crop = mut.norm01(im_crop)
 
         xs = []
