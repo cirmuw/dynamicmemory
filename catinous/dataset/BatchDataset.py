@@ -91,7 +91,7 @@ class LIDCBatch(BatchDataset):
             s2 = int((h - self.cropped_to[1]) / 2)
             e2 = int(s2 + self.cropped_to[1])
             img = img[:, s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
-        img = mut.intensity_window(img, low=-1024, high=1024)
+        img = mut.intensity_window(img, low=-1024, high=200)
         img = mut.norm01(img)
 
         # return img[None, :, :]
@@ -152,19 +152,16 @@ class LIDCBatch(BatchDataset):
                 y2 = 5 + (y2 - y)
                 y = 5
 
-
-
             im_crop = img[:, int(s1):int(e1), int(s2):int(e2)]
-            im_crop = mut.intensity_window(im_crop, low=-1024, high=1024)
+            im_crop = mut.intensity_window(im_crop, low=-1024, high=200)
             try:
                 im_crop = mut.norm01(im_crop)
-                pass
             except Exception as e:
                 print(im_crop.shape, s1, e1, s2, e2, y, y2, elem.image)
                 raise e
         else:
             im_crop = img
-            im_crop = mut.intensity_window(im_crop, low=-1024, high=1024)
+            im_crop = mut.intensity_window(im_crop, low=-1024, high=200)
             im_crop = mut.norm01(im_crop)
 
         xs = []
