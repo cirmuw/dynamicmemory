@@ -1,7 +1,8 @@
-LOGGING_FOLDER: 'log/tensorboard_logs/'
-TRAINED_MODELS_FOLDER: 'output/trained_models/'
-TRAINED_MEMORY_FOLDER: 'output/trained_memory/'
-RESPATH: 'output/results/'
+settings:
+    LOGGING_DIR: 'log/tensorboard_logs/'
+    TRAINED_MODELS_DIR: 'output/trained_models/'
+    TRAINED_MEMORY_DIR: 'output/trained_memory/'
+    RESULT_DIR: 'output/results/'
 
 trainparams:
     continuous: True
@@ -18,3 +19,4 @@ trainparams:
     val_check_interval: 10
     EWC: True
     EWC_lambda: 1
+    seed: 1654130

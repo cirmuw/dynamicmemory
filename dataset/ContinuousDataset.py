@@ -1,12 +1,12 @@
 from torch.utils.data.dataset import Dataset
 import pandas as pd
 import numpy as np
-import nibabel as nib
 import torch
-from py_jotools import augmentation, mut
-import pydicom as pyd
 import SimpleITK as sitk
 import random
+import sys
+sys.path.append('../')
+import utils as dmutils
 
 class ContinuousDataset(Dataset):
 
@@ -61,24 +61,6 @@ class ContinuousDataset(Dataset):
         return len(self.df)
 
 
-class BrainAgeContinuous(ContinuousDataset):
-
-    def __init__(self, datasetfile, transition_phase_after=.8, order=['1.5T Philips', '3.0T Philips', '3.0T'], seed=None):
-        super(ContinuousDataset, self).__init__()
-        self.init(datasetfile, transition_phase_after, order, seed)
-
-
-    def __getitem__(self, index):
-        nimg = nib.load(self.df.iloc[index].Image)
-        nimg = nib.as_closest_canonical(nimg)
-        img = nimg.get_fdata()
-        img = img.swapaxes(0, 2)
-        img = mut.resize(img, (64, 128, 128))
-        img = mut.norm01(img)
-        img = img[None, :, :, :]
-
-        return torch.tensor(img).float(), torch.tensor(self.df.iloc[index].Age).float(), self.df.iloc[index].Image, self.df.iloc[index].Scanner
-
 class LIDCContinuous(ContinuousDataset):
 
     def __init__(self, datasetfile, transition_phase_after=.8, order=['ges', 'geb', 'sie', 'time_siemens'], seed=None, cropped_to=(288, 288)):
@@ -106,8 +88,8 @@ class LIDCContinuous(ContinuousDataset):
             s2 = int((h - self.cropped_to[1]) / 2)
             e2 = int(s2 + self.cropped_to[1])
             img = img[:, s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
-        img = mut.intensity_window(img, low=-1024, high=1024)
-        img = mut.norm01(img)
+        img = dmutils.intensity_window(img, low=-1024, high=1024)
+        img = dmutils.norm01(img)
 
         # return img[None, :, :]
         return np.tile(img, [3, 1, 1])
@@ -204,34 +186,13 @@ class CardiacContinuous(ContinuousDataset):
 
         self.outsize = (240, 196)
 
-    def crop_center_or_pad(self, img, cropx, cropy):
-        x, y = img.shape
-
-        startx = x // 2 - (cropx // 2)
-        starty = y // 2 - (cropy // 2)
-
-        if startx < 0:
-            outimg = np.zeros(self.outsize)
-            startx *= -1
-            outimg[startx:self.outsize[0] - startx, :] = img[:, starty:starty + cropy]
-            return outimg
-
-        return img[startx:startx + cropx, starty:starty + cropy]
-
     def load_image(self, elem):
-        #img = sitk.ReadImage(elem.filepath)
-        #img = sitk.GetArrayFromImage(img)[elem.t, elem.slice, :, :]
-        #img = mut.norm01(img)
-
-        #mask = sitk.ReadImage(elem.filepath[:-7] + '_gt.nii.gz')
-        #mask = sitk.GetArrayFromImage(mask)[elem.t, elem.slice, :, :]
-
-        #if img.shape != self.outsize:
-        #    img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
-        #    mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
-
         img = np.load(elem.slicepath)
         mask = np.load(elem.slicepath[:-4] + '_gt.npy')
+
+        if img.shape != self.outsize:
+            img = dmutils.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
+            mask = dmutils.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
 
         return img[None, :, :], mask
 

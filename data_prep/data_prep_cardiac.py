@@ -13,7 +13,7 @@ def norm01(x):
         r = np.divide(r, np.max(r))
     return r
 
-def prepare_data(datasetpath, outputpath, seed=516165):
+def prepare_data(datasetpath, outputpath, seed=516165): #seed generated randomly and fixed to ensure reproduciblity
     df_dsinfo = pd.read_csv(f'{datasetpath}/201014_M&Ms_Dataset_Information_-_opendataset.csv')
     df_dsinfo['labels'] = True
 

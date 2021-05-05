@@ -64,10 +64,12 @@ class DynamicMemoryModel(pl.LightningModule):
                 raise NotImplementedError('EWC is only implemented for cardiac segmentation')
 
         if not self.hparams.base_model is None:
+            print(os.path.join(modeldir, self.hparams.base_model))
             state_dict = torch.load(os.path.join(modeldir, self.hparams.base_model))
             new_state_dict = {}
             for key in state_dict.keys():
-                new_state_dict[key.replace('model.', '')] = state_dict[key]
+                if key.startswith('model.'):
+                    new_state_dict[key.replace('model.', '')] = state_dict[key]
             self.model.load_state_dict(new_state_dict)
 
         if training:
@@ -97,8 +99,7 @@ class DynamicMemoryModel(pl.LightningModule):
         return ewc
 
     def init_memory_and_gramhooks(self):
-        if self.hparams.gram_weights is None:
-            self.hparams.gram_weights = [1] * len(self.gramlayers)
+        self.hparams.gram_weights = [1] * len(self.gramlayers)
 
         self.grammatrices = []
 
@@ -486,7 +487,7 @@ def trained_model(hparams, settings, training=True):
     os.makedirs(settings.TRAINED_MEMORY_DIR, exist_ok=True)
     os.makedirs(settings.RESULT_DIR, exist_ok=True)
 
-    model = DynamicMemoryModel(hparams=hparams, device=device, training=training)
+    model = DynamicMemoryModel(hparams=hparams, modeldir=settings.TRAINED_MODELS_DIR, device=device, training=training)
     exp_name = dmutils.get_expname(hparams)
     print('expname', exp_name)
     weights_path = cached_path(hparams, settings.TRAINED_MODELS_DIR)
