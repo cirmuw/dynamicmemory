@@ -4,6 +4,7 @@ In submission at _Nature Communications_.
 
 **1. Requirements**
 
+All experiments are performed with PyTorch 1.7.1 using Python 3.6. The requirements are given in `requirements.txt`.
 
 
 **2. Data set**
@@ -29,5 +30,3 @@ To run the entire training as reported in the paper use:
 `python run_training.py --paper`
 
 _Please note: Running the entire training runs multiple training runs for each setting! Therefore, a long runtime is expected._
-
-**4. Results**
