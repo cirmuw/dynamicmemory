@@ -1,12 +1,10 @@
-from py_jotools import augmentation, mut
 from torch.utils.data.dataset import Dataset
 import pandas as pd
 import numpy as np
-import nibabel as nib
 import torch
-import pydicom as pyd
 import SimpleITK as sitk
 import random
+import dynamicmemory.utils as dmutils
 
 class BatchDataset(Dataset):
 
@@ -36,26 +34,6 @@ class BatchDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
-
-class BrainAgeBatch(BatchDataset):
-
-    def __init__(self, datasetfile, split=['base_train'], iterations=None, batch_size=None, res=None, seed=None):
-        super(BatchDataset, self).__init__()
-        self.init(datasetfile, split, iterations, batch_size, res, seed)
-
-
-    def __getitem__(self, index):
-        nimg = nib.load(self.df.iloc[index].Image)
-        nimg = nib.as_closest_canonical(nimg)
-        img = nimg.get_fdata()
-        img = img.swapaxes(0, 2)
-        img = mut.resize(img, (64, 128, 128))
-        img = mut.norm01(img)
-        img = img[None, :, :, :]
-
-        return torch.tensor(img).float(), torch.tensor(self.df.iloc[index].Age).float(), self.df.iloc[index].Image, \
-               self.df.iloc[index].Scanner
-
 class LIDCBatch(BatchDataset):
 
     def __init__(self, datasetfile, split=['base'], iterations=None, batch_size=None, res=None, seed=None,
@@ -66,19 +44,10 @@ class LIDCBatch(BatchDataset):
         self.cropped_to = cropped_to
         self.validation = validation
 
-        #if validation:
-        #    self.df = self.df.sort_values('patient_id').reset_index(drop=True)
-
         self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
 
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        #try:
-        #    img = pyd.read_file(path).pixel_array
-        #except Exception as e:
-        #    img = pyd.read_file(path, force=True)
-        #    img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
-        #    img = img.pixel_array
         dcm = sitk.ReadImage(path)
         img = sitk.GetArrayFromImage(dcm)
 
@@ -91,15 +60,13 @@ class LIDCBatch(BatchDataset):
             s2 = int((h - self.cropped_to[1]) / 2)
             e2 = int(s2 + self.cropped_to[1])
             img = img[:, s1 + shiftx_aug:e1 + shiftx_aug, s2 + shifty_aug:e2 + shifty_aug]
-        img = mut.intensity_window(img, low=-1024, high=200)
-        img = mut.norm01(img)
+        img = dmutils.intensity_window(img, low=-1024, high=200)
+        img = dmutils.norm01(img)
 
         # return img[None, :, :]
         return np.tile(img, [3, 1, 1])
 
     def load_image_validation(self, elem):
-        #dcm = pyd.read_file(elem.image)
-        #img = dcm.pixel_array
         dcm = sitk.ReadImage(elem.image)
         img = sitk.GetArrayFromImage(dcm)
 
@@ -118,16 +85,10 @@ class LIDCBatch(BatchDataset):
             s2 = y_shift
             e2 = int(s2 + self.cropped_to[1])
 
-            #x -= (dcm.Rows - self.cropped_to[0]) / 2
-            #y -= (dcm.Columns - self.cropped_to[1]) / 2
-            #x2 -= (dcm.Rows - self.cropped_to[0]) / 2
-            #y2 -= (dcm.Columns - self.cropped_to[1]) / 2
-
             x -= s2
             y -= s1
             x2 -= s2
             y2 -= s1
-
 
             if x<0:
                 s2 -= (x*-1) + 5
@@ -153,16 +114,16 @@ class LIDCBatch(BatchDataset):
                 y = 5
 
             im_crop = img[:, int(s1):int(e1), int(s2):int(e2)]
-            im_crop = mut.intensity_window(im_crop, low=-1024, high=200)
+            im_crop = dmutils.intensity_window(im_crop, low=-1024, high=200)
             try:
-                im_crop = mut.norm01(im_crop)
+                im_crop = dmutils.norm01(im_crop)
             except Exception as e:
                 print(im_crop.shape, s1, e1, s2, e2, y, y2, elem.image)
                 raise e
         else:
             im_crop = img
-            im_crop = mut.intensity_window(im_crop, low=-1024, high=200)
-            im_crop = mut.norm01(im_crop)
+            im_crop = dmutils.intensity_window(im_crop, low=-1024, high=200)
+            im_crop = dmutils.norm01(im_crop)
 
         xs = []
         x2s = []
@@ -191,11 +152,6 @@ class LIDCBatch(BatchDataset):
             box[0, 3] = y2
         else:
             box = np.zeros((len(xs), 4))
-            #box[0, 0] = x
-            #box[0, 1] = y
-            #box[0, 2] = x2
-            #box[0, 3] = y2
-
             for j, x in enumerate(xs):
                 box[j, 0] = x
                 box[j, 1] = ys[j]
@@ -292,8 +248,7 @@ class LIDCBatch(BatchDataset):
         target['iscrowd'] = torch.zeros((len(annotation)), dtype=torch.int64)
 
         return torch.as_tensor(img, dtype=torch.float32), target, elem.scanner, elem.image
-        #return img, target, elem.scanner, elem.image
-        
+
 class CardiacBatch(BatchDataset):
 
     def __init__(self, datasetfile, split=['base'], iterations=None, batch_size=None, res=None, seed=None):
@@ -301,37 +256,13 @@ class CardiacBatch(BatchDataset):
         self.init(datasetfile, split, iterations, batch_size, res, seed)
         self.outsize = (240, 196)
 
-        print('init cardiac batch with datasetfile', datasetfile)
-
-
-    def crop_center_or_pad(self, img, cropx, cropy):
-        x, y = img.shape
-
-        startx = x // 2 - (cropx // 2)
-        starty = y // 2 - (cropy // 2)
-
-        if startx < 0:
-            outimg = np.zeros(self.outsize)
-            startx *= -1
-            outimg[startx:self.outsize[0] - startx, :] = img[:, starty:starty + cropy]
-            return outimg
-
-        return img[startx:startx + cropx, starty:starty + cropy]
-
     def load_image(self, elem):
-        # img = sitk.ReadImage(elem.filepath)
-        # img = sitk.GetArrayFromImage(img)[elem.t, elem.slice, :, :]
-        # img = mut.norm01(img)
-
-        # mask = sitk.ReadImage(elem.filepath[:-7] + '_gt.nii.gz')
-        # mask = sitk.GetArrayFromImage(mask)[elem.t, elem.slice, :, :]
-
-        # if img.shape != self.outsize:
-        #    img = self.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
-        #    mask = self.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
-
         img = np.load(elem.slicepath)
         mask = np.load(elem.slicepath[:-4] + '_gt.npy')
+
+        if img.shape != self.outsize:
+            img = dmutils.crop_center_or_pad(img, self.outsize[0], self.outsize[1])
+            mask = dmutils.crop_center_or_pad(mask, self.outsize[0], self.outsize[1])
 
         return img[None, :, :], mask
 

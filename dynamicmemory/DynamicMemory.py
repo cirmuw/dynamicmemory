@@ -4,9 +4,8 @@ import torch
 import torch.nn.functional as F
 from scipy.spatial.distance import pdist, squareform
 from sklearn.ensemble import IsolationForest
-from sklearn.random_projection import SparseRandomProjection
-import collections
 import numpy as np
+
 
 class MemoryItem():
 
@@ -21,9 +20,11 @@ class MemoryItem():
         self.pseudo_domain = pseudo_domain
         self.deleteflag = False
 
+
 class DynamicMemory():
 
-    def __init__(self, memorymaximum=256, balance_memory=True, gram_weights=None, base_transformer=None, base_if=None, seed=None):
+    def __init__(self, memorymaximum=256, balance_memory=True, gram_weights=None, base_transformer=None, base_if=None,
+                 seed=None):
         self.memoryfull = False
         self.memorylist = []
         self.memorymaximum = memorymaximum
@@ -49,7 +50,7 @@ class DynamicMemory():
         if self.transformer is not None:
             item.current_grammatrix = np.hstack([gm.flatten() for gm in item.current_grammatrix])
             item.current_grammatrix = self.transformer.transform(item.current_grammatrix.reshape(1, -1))
-            item.current_grammatrix = item.current_grammatrix[0] #TODO: debug this!
+            item.current_grammatrix = item.current_grammatrix[0]
 
             domain = self.check_pseudodomain(item.current_grammatrix)
             item.pseudo_domain = domain
@@ -63,17 +64,18 @@ class DynamicMemory():
             if len(self.memorylist) == self.memorymaximum:
                 self.memoryfull = True
         else:
-            assert(item.current_grammatrix is not None)
+            assert (item.current_grammatrix is not None)
             insertidx = -1
             if self.pseudo_detection:
                 insertidx = self.find_insert_position()
 
-            if insertidx==-1:
+            if insertidx == -1:
                 mingramloss = 1000
                 for j, ci in enumerate(self.memorylist):
                     l_sum = 10000
-                    if self.pseudo_detection and ci.pseudo_domain==domain:
-                        l_sum = F.mse_loss(torch.tensor(item.current_grammatrix), torch.tensor(ci.current_grammatrix), reduction='sum')
+                    if self.pseudo_detection and ci.pseudo_domain == domain:
+                        l_sum = F.mse_loss(torch.tensor(item.current_grammatrix), torch.tensor(ci.current_grammatrix),
+                                           reduction='sum')
                     elif not self.pseudo_detection:
                         l_sum = 0.0
                         for i in range(len(item.current_grammatrix)):
@@ -84,7 +86,7 @@ class DynamicMemory():
                         mingramloss = l_sum.item()
                         insertidx = j
 
-            if insertidx!=-1:
+            if insertidx != -1:
                 self.memorylist[insertidx] = item
             else:
                 print('insertidx still -1')
@@ -96,8 +98,6 @@ class DynamicMemory():
         return -1
 
     def flag_items_for_deletion(self):
-        #print(len(self.isoforests), 'domain', self.memorymaximum, self.max_per_domain)
-
         for k, v in self.isoforests.items():
             domain_count = len(self.get_domainitems(k))
             print('domain', k, domain_count)
@@ -110,10 +110,6 @@ class DynamicMemory():
                                 item.deleteflag = True
 
                             todelete -= 1
-        #for mi in self.memorylist:
-        #    print('after updating for deletion')
-        #    print(mi.pseudo_domain, mi.deleteflag)
-
 
     def get_domainitems(self, domain):
         items = []
@@ -123,44 +119,39 @@ class DynamicMemory():
         return items
 
     def check_outlier_memory(self, model):
-        if len(self.outlier_memory)>5:
+        if len(self.outlier_memory) > 5:
             outlier_grams = [o.current_grammatrix for o in self.outlier_memory]
 
             distances = squareform(pdist(outlier_grams))
-            #print('check outlier memory distances', distances, sorted([np.array(sorted(d)[:6]).sum() for d in distances])[5])
-            if sorted([np.array(sorted(d)[:6]).sum() for d in distances])[5]<0.20: #TODO: this is an arbritary threshold
+            if sorted([np.array(sorted(d)[:6]).sum() for d in distances])[5] < 0.20:
 
                 clf = IsolationForest(n_estimators=5, random_state=self.seed, warm_start=True, contamination=0.10).fit(
                     outlier_grams)
 
                 new_domain_label = len(self.isoforests)
-                self.max_per_domain = int(self.memorymaximum/(new_domain_label+1))
-                self.domaincounter= 0
+                self.max_per_domain = int(self.memorymaximum / (new_domain_label + 1))
+                self.domaincounter = 0
 
                 self.flag_items_for_deletion()
 
                 to_delete = []
                 for k, p in enumerate(clf.predict(outlier_grams)):
-                        if p == 1:
-                            idx = self.find_insert_position()
-                            if idx != -1:
-                                elem = self.outlier_memory[k]
-                                elem.pseudo_domain = new_domain_label
-                                self.memorylist[idx] = elem
-                                self.domaincounter += 1
-                                to_delete.append(self.outlier_memory[k])
-                                #detection, wrong_detection = model.check_detection(elem.img, elem.target)
-                                #self.domainPerf[new_domain_label].append(detection)
-                                #self.domainPerf_wrong[new_domain_label].append(wrong_detection)
+                    if p == 1:
+                        idx = self.find_insert_position()
+                        if idx != -1:
+                            elem = self.outlier_memory[k]
+                            elem.pseudo_domain = new_domain_label
+                            self.memorylist[idx] = elem
+                            self.domaincounter += 1
+                            to_delete.append(self.outlier_memory[k])
                 for elem in to_delete:
                     self.outlier_memory.remove(elem)
 
-                if self.domaincounter>0:
+                if self.domaincounter > 0:
                     self.isoforests[new_domain_label] = clf
 
                     for elem in self.get_domainitems(new_domain_label):
                         print('found new domain', new_domain_label, elem.scanner)
-
 
     def check_pseudodomain(self, grammatrix):
         max_pred = 0
@@ -174,21 +165,18 @@ class DynamicMemory():
 
         return current_domain
 
-    #forceditems are in the batch, the others are chosen randomly
+    # forceditems are in the batch, the others are chosen randomly
     def get_training_batch(self, batchsize, forceditems=None):
         batchsize = min(batchsize, len(self.memorylist))
 
         imgshape = self.memorylist[0].img.shape
-
         x = torch.empty(size=(batchsize, imgshape[0], imgshape[1], imgshape[2]))
-
         y = list()
-
         j = 0
 
         if forceditems is not None:
             for ci in forceditems:
-                if j<batchsize:
+                if j < batchsize:
                     x[j] = ci.img
                     y.append(ci.target)
                     ci.traincounter += 1
@@ -196,21 +184,21 @@ class DynamicMemory():
 
             batchsize -= j
 
-        if self.balance_memory and self.pseudo_detection and len(self.isoforests)>1:
-            items_per_domain = math.ceil(batchsize/len(self.isoforests))
+        if self.balance_memory and self.pseudo_detection and len(self.isoforests) > 1:
+            items_per_domain = math.ceil(batchsize / len(self.isoforests))
 
             for i in range(len(self.isoforests)):
                 domain_items = self.get_domainitems(i)
                 random.shuffle(domain_items)
                 for k in range(items_per_domain):
-                    if batchsize>0 and len(domain_items)>k:
+                    if batchsize > 0 and len(domain_items) > k:
                         x[j] = domain_items[k].img
                         y.append(domain_items[k].target)
                         j += 1
                         batchsize -= 1
                         domain_items[k].traincounter += 1
 
-        if batchsize>0:
+        if batchsize > 0:
             random.shuffle(self.memorylist)
             for ci in self.memorylist[-batchsize:]:
                 x[j] = ci.img
@@ -227,12 +215,12 @@ class DynamicMemory():
         ys = []
 
         if forceditems is not None:
-            force_per_batch = int(len(forceditems)/batches)
+            force_per_batch = int(len(forceditems) / batches)
 
         for b in range(batches):
             bs = batchsize
             if forceditems is not None:
-                forcedbatchitems = forceditems[b*force_per_batch:(b+1)*force_per_batch]
+                forcedbatchitems = forceditems[b * force_per_batch:(b + 1) * force_per_batch]
             else:
                 forcedbatchitems = None
 
@@ -256,7 +244,7 @@ class DynamicMemory():
             if randombatch:
                 random.shuffle(self.memorylist)
 
-            if bs>0:
+            if bs > 0:
                 for ci in self.memorylist[-bs:]:
                     x[j] = ci.img
                     y.append(ci.target)
@@ -267,7 +255,6 @@ class DynamicMemory():
             ys.append(y)
 
         return xs, ys
-
 
     def counter_outlier_memory(self):
         for item in self.outlier_memory:

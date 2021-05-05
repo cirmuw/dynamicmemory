@@ -2,6 +2,6 @@
 .idea
 .vscode
 __pycache__/
-catinous_log/
 checkpoints/
-/catinous/models/Genesis_Chest_CT.pt
+data/
+results/
