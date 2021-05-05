@@ -13,18 +13,18 @@ from sklearn.random_projection import SparseRandomProjection
 
 from dataset.BatchDataset import *
 from dataset.ContinuousDataset import *
-import dynamicmemory.utils as dmutils
+sys.path.append('../')
+import utils as dmutils
 from dynamicmemory.DynamicMemory import DynamicMemory, MemoryItem
 
 
 class DynamicMemoryModel(pl.LightningModule):
 
-    def __init__(self, hparams={}, device=torch.device('cpu'), verbose=False, training=True):
+    def __init__(self, hparams={}, modeldir = None, device=torch.device('cpu'), verbose=False, training=True):
         super(DynamicMemoryModel, self).__init__()
-        self.hparams = dmutils.default_params(self.get_default_hparams(), hparams)
-        self.hparams = argparse.Namespace(**self.hparams)
-
+        self.hparams = argparse.Namespace(**hparams)
         self.to(device)
+        self.modeldir = modeldir
 
         # load model according to hparams
         self.model, self.stylemodel, self.gramlayers = dmutils.load_model_stylemodel(self.hparams.task)
@@ -64,7 +64,7 @@ class DynamicMemoryModel(pl.LightningModule):
                 raise NotImplementedError('EWC is only implemented for cardiac segmentation')
 
         if not self.hparams.base_model is None:
-            state_dict = torch.load(os.path.join(dmutils.TRAINED_MODELS_FOLDER, self.hparams.base_model))
+            state_dict = torch.load(os.path.join(modeldir, self.hparams.base_model))
             new_state_dict = {}
             for key in state_dict.keys():
                 new_state_dict[key.replace('model.', '')] = state_dict[key]
@@ -85,30 +85,6 @@ class DynamicMemoryModel(pl.LightningModule):
 
         if verbose:
             pprint(vars(self.hparams))
-
-    @staticmethod
-    def get_default_hparams():
-        hparams = dict()
-        hparams['root_dir'] = '/project/catinous/'
-        hparams['datasetfile'] = 'catsinom_combined_dataset.csv'
-        hparams['batch_size'] = 8
-        hparams['training_batch_size'] = 8
-        hparams['transition_phase_after'] = 0.8
-        hparams['memorymaximum'] = 128
-        hparams['use_memory'] = True
-        hparams['random_memory'] = True
-        hparams['balance_memory'] = False
-        hparams['order'] = ['lr', 'hr', 'hr_ts']
-        hparams['continuous'] = True
-        hparams['noncontinuous_steps'] = 3000
-        hparams['noncontinuous_train_splits'] = ['train', 'base_train']
-        hparams['val_check_interval'] = 100
-        hparams['base_model'] = None
-        hparams['run_postfix'] = 1
-        hparams['gram_weights'] = None
-        hparams['dim'] = 2
-
-        return hparams
 
     def init_ewc(self):
         dl = DataLoader(self.TaskDatasetBatch(self.hparams.datasetfile,
@@ -262,7 +238,7 @@ class DynamicMemoryModel(pl.LightningModule):
                 shift_scanner = s
         if newshift:
             exp_name = dmutils.get_expname(self.hparams)
-            weights_path = dmutils.TRAINED_MODELS_FOLDER + exp_name + '_shift_' + shift_scanner + '.pt'
+            weights_path = self.modeldir + exp_name + '_shift_' + shift_scanner + '.pt'
             torch.save(self.model.state_dict(), weights_path)
             self.scanner_checkpoints[shift_scanner] = True
 
@@ -284,7 +260,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
     def val_dataloader(self):
         return DataLoader(self.TaskDatasetBatch(self.hparams.datasetfile,
-                                                split='val', validation=True, res=self.hparams.order),
+                                                split='val', res=self.hparams.order),
                           batch_size=4,
                           num_workers=2,
                           collate_fn=self.collate_fn)
@@ -478,7 +454,7 @@ class DynamicMemoryModel(pl.LightningModule):
 
             self.log(f'val_ap_{scanner}', aps[scanner])
 
-    def validation_cardiac_end(self, validation_step_outputs):
+    def cardiac_validation_end(self, validation_step_outputs):
         scanners = []
         dice_1 = []
         dice_2 = []
@@ -498,21 +474,26 @@ class DynamicMemoryModel(pl.LightningModule):
             self.log(f'val_dice3_{s}', df_mean['dice_3'][s])
 
 
-def trained_model(hparams, training=True):
-    df_cache = None
+def trained_model(hparams, settings, training=True):
+    df_memory = None
     if torch.cuda.is_available():
         device = torch.device('cuda')
     else:
         device = torch.device('cpu')
+
+    settings = argparse.Namespace(**settings)
+    os.makedirs(settings.TRAINED_MODELS_DIR, exist_ok=True)
+    os.makedirs(settings.TRAINED_MEMORY_DIR, exist_ok=True)
+    os.makedirs(settings.RESULT_DIR, exist_ok=True)
+
     model = DynamicMemoryModel(hparams=hparams, device=device, training=training)
-    hparams = dmutils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
     exp_name = dmutils.get_expname(hparams)
     print('expname', exp_name)
-    weights_path = cached_path(hparams)  # utils.TRAINED_MODELS_FOLDER + exp_name +'.pt'
+    weights_path = cached_path(hparams, settings.TRAINED_MODELS_DIR)
 
     if not os.path.exists(weights_path):
         if training:
-            logger = dmutils.pllogger(hparams)
+            logger = dmutils.pllogger(hparams, settings.LOGGING_DIR)
             trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
                               val_check_interval=model.hparams.val_check_interval,
                               checkpoint_callback=False, progress_bar_refresh_rate=0)
@@ -521,7 +502,7 @@ def trained_model(hparams, training=True):
             torch.save(model.state_dict(), weights_path)
             if model.hparams.continuous and model.hparams.use_memory:
                 dmutils.save_cache_to_csv(model.trainingsmemory.memorylist,
-                                          dmutils.TRAINED_MEMORY_FOLDER + exp_name + '.csv')
+                                          settings.TRAINED_MEMORY_DIR + exp_name + '.csv')
         else:
             model = None
     else:
@@ -530,28 +511,26 @@ def trained_model(hparams, training=True):
         model.freeze()
 
     if model.hparams.continuous and model.hparams.use_memory:
-        if os.path.exists(dmutils.TRAINED_MEMORY_FOLDER + exp_name + '.csv'):
-            df_cache = pd.read_csv(dmutils.TRAINED_MEMORY_FOLDER + exp_name + '.csv')
+        if os.path.exists(settings.TRAINED_MEMORY_DIR + exp_name + '.csv'):
+            df_memory = pd.read_csv(settings.TRAINED_MEMORY_DIR + exp_name + '.csv')
         else:
-            df_cache = None
+            df_memory = None
 
     # always get the last version
-    if os.path.exists(dmutils.LOGGING_FOLDER + exp_name):
-        max_version = max([int(x.split('_')[1]) for x in os.listdir(dmutils.LOGGING_FOLDER + exp_name)])
-        logs = pd.read_csv(dmutils.LOGGING_FOLDER + exp_name + '/version_{}/metrics.csv'.format(max_version))
+    if os.path.exists(settings.LOGGING_DIR + exp_name):
+        max_version = max([int(x.split('_')[1]) for x in os.listdir(settings.LOGGING_DIR + exp_name)])
+        logs = pd.read_csv(settings.LOGGING_DIR + exp_name + '/version_{}/metrics.csv'.format(max_version))
     else:
         logs = None
 
-    return model, logs, df_cache, exp_name + '.pt'
+    return model, logs, df_memory, exp_name + '.pt'
 
 
-def is_cached(hparams):
-    hparams = dmutils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
+def is_cached(hparams, trained_dir):
     exp_name = dmutils.get_expname(hparams)
-    return os.path.exists(dmutils.TRAINED_MODELS_FOLDER + exp_name + '.pt')
+    return os.path.exists(trained_dir + exp_name + '.pt')
 
 
-def cached_path(hparams):
-    hparams = dmutils.default_params(DynamicMemoryModel.get_default_hparams(), hparams)
+def cached_path(hparams, trained_dir):
     exp_name = dmutils.get_expname(hparams)
-    return dmutils.TRAINED_MODELS_FOLDER + exp_name + '.pt'
+    return trained_dir + exp_name + '.pt'

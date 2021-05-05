@@ -4,7 +4,9 @@ import numpy as np
 import torch
 import SimpleITK as sitk
 import random
-import dynamicmemory.utils as dmutils
+import sys
+sys.path.append('../')
+import utils as dmutils
 
 class BatchDataset(Dataset):
 
@@ -44,7 +46,8 @@ class LIDCBatch(BatchDataset):
         self.cropped_to = cropped_to
         self.validation = validation
 
-        self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
+        if split=='val':
+            self.validation=True
 
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
@@ -125,38 +128,12 @@ class LIDCBatch(BatchDataset):
             im_crop = dmutils.intensity_window(im_crop, low=-1024, high=200)
             im_crop = dmutils.norm01(im_crop)
 
-        xs = []
-        x2s = []
-        ys = []
-        y2s = []
-        for i, row in self.df_multiplenodules.loc[self.df_multiplenodules.image==elem.image].iterrows():
-            print('multiple')
-            x1_new = row.x1-s2
-            x2_new = row.x2-s2
+        box = np.zeros((1, 4))
+        box[0, 0] = x
+        box[0, 1] = y
+        box[0, 2] = x2
+        box[0, 3] = y2
 
-            y1_new = row.y1-s1
-            y2_new = row.y2-s1
-
-            if x1_new>0 and x1_new<self.cropped_to[0] and y1_new>0 and y1_new<self.cropped_to[1]:
-                xs.append(x1_new)
-                x2s.append(x2_new)
-
-                ys.append(y1_new)
-                y2s.append(y2_new)
-
-        if xs==[]:
-            box = np.zeros((1, 4))
-            box[0, 0] = x
-            box[0, 1] = y
-            box[0, 2] = x2
-            box[0, 3] = y2
-        else:
-            box = np.zeros((len(xs), 4))
-            for j, x in enumerate(xs):
-                box[j, 0] = x
-                box[j, 1] = ys[j]
-                box[j, 2] = x2s[j]
-                box[j, 3] = y2s[j]
 
         return np.tile(im_crop, [3, 1, 1]), box
 
@@ -180,7 +157,6 @@ class LIDCBatch(BatchDataset):
         x -= shifty_aug
         y2 -= shiftx_aug
         x2 -= shifty_aug
-
 
         xs = []
         x2s = []

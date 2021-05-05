@@ -1,0 +1,24 @@
+LOGGING_FOLDER: 'log/tensorboard_logs/'
+TRAINED_MODELS_FOLDER: 'output/trained_models/'
+TRAINED_MEMORY_FOLDER: 'output/trained_memory/'
+RESPATH: 'output/results/'
+
+trainparams:
+    continuous: True
+    datasetfile: 'data/cardiacdatasetsplit.csv'
+    batch_size: 8
+    training_batch_size: 16
+    transition_phase_after: 0.8
+    task: 'cardiac'
+    order: ['Siemens', 'GE', 'Philips', 'Canon']
+    scanner: null
+    base_model: 'cardiac_batch_cardiacdatasetsplit_base_1_42f2d8f159.pt'
+    run_postfix: 1
+    val_check_interval: 10
+    memorymaximum: 128
+    use_memory: True
+    random_memory: False
+    balance_memory: False
+    foce_misclassified: True
+    misclass_theshold: 0.8
+    seed: 1654130

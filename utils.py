@@ -17,11 +17,6 @@ import torchvision.models as models
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import pydicom as pyd
 
-LOGGING_FOLDER = '/project/catinous/tensorboard_logs/'
-TRAINED_MODELS_FOLDER = '/project/catinous/trained_models/'
-TRAINED_MEMORY_FOLDER = '/project/catinous/trained_cache/'
-RESPATH = '/project/catinous/results/'
-
 def sort_dict(input_dict):
     dict_out = {}
     keys = list(input_dict.keys())
@@ -58,16 +53,16 @@ def norm01(x):
     return r
 
 
-def crop_center_or_pad(self, img, cropx, cropy):
+def crop_center_or_pad(img, cropx, cropy):
     x, y = img.shape
 
     startx = x // 2 - (cropx // 2)
     starty = y // 2 - (cropy // 2)
 
     if startx < 0:
-        outimg = np.zeros(self.outsize)
+        outimg = np.zeros((cropx, cropy))
         startx *= -1
-        outimg[startx:self.outsize[0] - startx, :] = img[:, starty:starty + cropy]
+        outimg[startx:cropx- startx, :] = img[:, starty:starty + cropy]
         return outimg
 
     return img[startx:startx + cropx, starty:starty + cropy]
@@ -93,9 +88,8 @@ def default_params(dparams, params):
     return matched_params
 
 
-def pllogger(hparams):
-    return pllogging.TestTubeLogger(LOGGING_FOLDER, name=get_expname(hparams))
-
+def pllogger(hparams, logging_dir):
+    return pllogging.TestTubeLogger(logging_dir, name=get_expname(hparams))
 
 def get_expname(hparams):
     if type(hparams) is argparse.Namespace:
