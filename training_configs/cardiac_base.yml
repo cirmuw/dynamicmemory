@@ -1,12 +1,12 @@
 settings:
-    LOGGING_DIR: 'log/tensorboard_logs/'
-    TRAINED_MODELS_DIR: 'output/trained_models/'
-    TRAINED_MEMORY_DIR: 'output/trained_memory/'
-    RESULT_DIR: 'output/results/'
+    LOGGING_DIR: '</path/to/projectdirectory/>/log/tensorboard_logs/'
+    TRAINED_MODELS_DIR: '</path/to/projectdirectory/>/output/trained_models/'
+    TRAINED_MEMORY_DIR: '</path/to/projectdirectory/>/output/trained_memory/'
+    RESULT_DIR: '</path/to/projectdirectory/>/output/results/'
 
 trainparams:
     continuous: False
-    datasetfile: 'data/cardiacdatasetsplit.csv'
+    datasetfile: '</path/to/projectdirectory/>/data/cardiacdatasetsplit.csv'
     batch_size: 16
     training_batch_size: 16
     transition_phase_after: 0.8

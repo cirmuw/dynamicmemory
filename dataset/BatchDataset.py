@@ -11,6 +11,16 @@ import utils as dmutils
 class BatchDataset(Dataset):
 
     def init(self, datasetfile, split, iterations, batch_size, res, seed):
+        """
+                Initialization for a batch dataset.
+
+                :param datasetfile (str): filepath to the dataset csv
+                :param iterations (int): number of iterations
+                :param batch_size (int): batch size of each mini-batch
+                :param split (string/list): Which dataset splits should be used for the dataset
+                :param res (string/list): scanner(s) included in the dataset
+                :param seed (int): seed to ensure reproducibility
+        """
         df = pd.read_csv(datasetfile, index_col=0)
         if type(split) is list:
             selection = np.any([df.split == x for x in split], axis=0)

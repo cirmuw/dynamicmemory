@@ -8,8 +8,22 @@ import numpy as np
 
 
 class MemoryItem():
+    """
+        Memory Item holding all attributes needed for a dynamic memory
+    """
 
     def __init__(self, img, target, filepath, scanner, current_grammatrix=None, pseudo_domain=None):
+        """
+                        Initialization of a memory item.
+
+                        :param img (tensor): image tensor stored in the item
+                        :param target (tensor): target for the task
+                        :param filepath (str): path to the file from which the image was read
+                        :param scanner (str): scanner with which the image was acquired
+                        :param current_grammatrix (np.array): calculated gram matrix for the image
+                        :param pseudo_domain (int): pseudo domain the item was assigned to
+        """
+
         self.img = img
         self.target = target
         self.filepath = filepath
@@ -22,13 +36,27 @@ class MemoryItem():
 
 
 class DynamicMemory():
+    """
+        Dynamic Memory, handling insertion of items based on style of the images,
+        optionally balances the memory by using a pseudo domain detection approach.
+    """
 
-    def __init__(self, memorymaximum=256, balance_memory=True, gram_weights=None, base_transformer=None, base_if=None,
+    def __init__(self, memorymaximum=256, balance_memory=True, base_transformer=None, base_if=None,
                  seed=None):
+        """
+            Initialization of the dynamic memory.
+
+            :param memorymaximum (int): number of elements that can be stored to memory
+            :param balance_memory (bool): whether or not to use pseudo domains to balance the memory
+            :param base_transformer: optional transformer applied to gram matrices of memory items
+            :param base_if: Isolation forest to find outliers for the base style
+            :param seed (int): random seed to ensure reproducibility
+        """
+
+
         self.memoryfull = False
         self.memorylist = []
         self.memorymaximum = memorymaximum
-        self.gram_weights = gram_weights
         self.balance_memory = balance_memory
 
         if base_if is not None:
@@ -46,6 +74,12 @@ class DynamicMemory():
         self.seed = seed
 
     def insert_element(self, item):
+        """
+            Function to insert an element into the memory.
+            Takes care of transforming the gram matrix, pseudo domain detection, and finding the image that should be replaced
+
+            :param item (MemoryItem): item to be inserted
+        """
         domain = -1
         if self.transformer is not None:
             item.current_grammatrix = np.hstack([gm.flatten() for gm in item.current_grammatrix])
@@ -79,7 +113,7 @@ class DynamicMemory():
                     elif not self.pseudo_detection:
                         l_sum = 0.0
                         for i in range(len(item.current_grammatrix)):
-                            l_sum += self.gram_weights[i] * F.mse_loss(
+                            l_sum += F.mse_loss(
                                 item.current_grammatrix[i], ci.current_grammatrix[i], reduction='mean')
 
                     if l_sum < mingramloss:
@@ -119,6 +153,9 @@ class DynamicMemory():
         return items
 
     def check_outlier_memory(self, model):
+        """
+            Checks the outlier memory if there is a new pseudo domain detection
+        """
         if len(self.outlier_memory) > 5:
             outlier_grams = [o.current_grammatrix for o in self.outlier_memory]
 
@@ -165,8 +202,13 @@ class DynamicMemory():
 
         return current_domain
 
-    # forceditems are in the batch, the others are chosen randomly
     def get_training_batch(self, batchsize, forceditems=None):
+        """
+            Samples a training batch of batchsize elements consisting of forced items and randomly samples items
+
+            :param forceditems (list MemoryItem): items that are forced to be in the batch
+        """
+
         batchsize = min(batchsize, len(self.memorylist))
 
         imgshape = self.memorylist[0].img.shape
@@ -209,6 +251,10 @@ class DynamicMemory():
         return x, y
 
     def get_training_batches(self, batchsize, batches=2, randombatch=False, forceditems=None):
+        """
+            Samples multiple batches for training
+        """
+
         batchsize = min(batchsize, len(self.memorylist))
 
         xs = []
@@ -257,6 +303,10 @@ class DynamicMemory():
         return xs, ys
 
     def counter_outlier_memory(self):
+        """
+            Increments the counter for each outlier item, eventually element are deleted if they exceed the outlier_epochs
+        """
+
         for item in self.outlier_memory:
             item.outlier_counter += 1
             if item.outlier_counter > self.outlier_epochs:

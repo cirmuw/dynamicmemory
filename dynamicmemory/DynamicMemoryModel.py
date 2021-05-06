@@ -1,16 +1,13 @@
 import argparse
 import logging
 import os
-from pprint import pprint
 
 import pytorch_lightning as pl
-from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 
 from sklearn.ensemble import IsolationForest
 from sklearn.random_projection import SparseRandomProjection
 
-from dataset.BatchDataset import *
 from dataset.ContinuousDataset import *
 sys.path.append('../')
 import utils as dmutils
@@ -56,8 +53,6 @@ class DynamicMemoryModel(pl.LightningModule, ABC):
 
 
     def init_memory_and_gramhooks(self):
-        self.hparams.gram_weights = [1] * len(self.gramlayers)
-
         self.grammatrices = []
 
         for layer in self.gramlayers:
@@ -71,7 +66,6 @@ class DynamicMemoryModel(pl.LightningModule, ABC):
 
         self.trainingsmemory = DynamicMemory(memorymaximum=self.hparams.memorymaximum,
                                              balance_memory=self.hparams.balance_memory,
-                                             gram_weights=self.hparams.gram_weights,
                                              base_if=base_if,
                                              base_transformer=base_transformer,
                                              seed=self.hparams.seed)

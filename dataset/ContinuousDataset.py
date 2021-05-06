@@ -9,12 +9,22 @@ sys.path.append('../')
 import utils as dmutils
 
 class ContinuousDataset(Dataset):
+    """
+    Base class for a dataset for training on a continuous data stream
+    """
 
     def init(self, datasetfile, transition_phase_after, order, seed):
+        """
+        Initialization for a continuous streaming dataset.
+
+        :param datasetfile (str): filepath to the dataset csv
+        :param transition_phase_after (float): fraction of images for each scanner after data from the next appears in stream
+        :param order (list): order of scanners in data stream
+        :param seed (int): seed to ensure reproducibility
+        """
         df = pd.read_csv(datasetfile)
         assert (set(['train']).issubset(df.split.unique()))
         np.random.seed(seed)
-        print(order)
         res_dfs = list()
         for r in order:
             res_df = df.loc[df.scanner == r]
@@ -70,12 +80,6 @@ class LIDCContinuous(ContinuousDataset):
         self.df_multiplenodules = pd.read_csv('/project/catinous/lungnodules_allnodules.csv')
 
     def load_image(self, path, shiftx_aug=0, shifty_aug=0):
-        # try:
-        #    img = pyd.read_file(path).pixel_array
-        # except Exception as e:
-        #    img = pyd.read_file(path, force=True)
-        #    img.file_meta.TransferSyntaxUID = pyd.uid.ImplicitVRLittleEndian
-        #    img = img.pixel_array
         dcm = sitk.ReadImage(path)
         img = sitk.GetArrayFromImage(dcm)
 
@@ -95,7 +99,6 @@ class LIDCContinuous(ContinuousDataset):
         return np.tile(img, [3, 1, 1])
 
     def load_annotation(self, elem, shiftx_aug=0, shifty_aug=0):
-        # dcm = pyd.read_file(elem.image, force=True)
         dcm = sitk.ReadImage(elem.image)
 
         x = elem.x1

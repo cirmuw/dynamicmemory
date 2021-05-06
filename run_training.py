@@ -103,8 +103,8 @@ def trained_model(hparams, settings, training=True):
         else:
             model = None
     else:
-        print('Read: ' + cached_path(hparams))
-        model.load_state_dict(torch.load(cached_path(hparams), map_location=device))
+        print('Read: ' + cached_path(hparams, settings.TRAINED_MODELS_DIR))
+        model.load_state_dict(torch.load(cached_path(hparams, settings.TRAINED_MODELS_DIR), map_location=device))
         model.freeze()
 
     if model.hparams.continuous and model.hparams.use_memory:
