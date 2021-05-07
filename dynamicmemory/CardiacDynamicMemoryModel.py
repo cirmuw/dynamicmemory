@@ -5,6 +5,7 @@ sys.path.append('../')
 import utils as dmutils
 from dynamicmemory.DynamicMemoryModel import DynamicMemoryModel
 from torch.utils.data import DataLoader
+import torchvision.models as models
 
 
 class CardiacDynamicMemoryModel(DynamicMemoryModel):
@@ -34,6 +35,23 @@ class CardiacDynamicMemoryModel(DynamicMemoryModel):
         ewc = dmutils.EWC(self.model, dl)
 
         return ewc
+
+    def load_model_stylemodel(self, stylelayers=2):
+        stylemodel = models.resnet50(pretrained=True)
+
+        model = models.segmentation.fcn_resnet50(num_classes=4)
+        model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        stylemodel.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+
+        if stylelayers == 1:
+            gramlayers = [stylemodel.layer1[-1].conv1]
+        elif stylelayers == 2:
+            gramlayers = [stylemodel.layer1[-1].conv1,
+                          stylemodel.layer2[-1].conv1]
+        stylemodel.eval()
+
+        return model, stylemodel, gramlayers
+
 
     def force_element(self, m):
         return m < self.hparams.misclass_threshold

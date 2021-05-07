@@ -137,33 +137,6 @@ def gram_matrix(input):
 
     return grams
 
-
-def load_model_stylemodel(task: str, stylelayers=2):
-    stylemodel = models.resnet50(pretrained=True)
-
-    if task == 'cardiac':
-        model = models.segmentation.fcn_resnet50(num_classes=4)
-        model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        stylemodel.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-    elif task == 'lidc':
-        num_classes = 3  # 0=background, 1=begnin, 2=malignant
-        # load a model pre-trained pre-trained on COCO
-        model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-        in_features = model.roi_heads.box_predictor.cls_score.in_features
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    else:
-        raise NotImplementedError(f'task {task} not implemented')
-
-    if stylelayers == 1:
-        gramlayers = [stylemodel.layer1[-1].conv1]
-    elif stylelayers == 2:
-        gramlayers = [stylemodel.layer1[-1].conv1,
-                      stylemodel.layer2[-1].conv1]
-    stylemodel.eval()
-
-    return model, stylemodel, gramlayers
-
-
 def collate_fn(batch):
     return tuple(zip(*batch))
 

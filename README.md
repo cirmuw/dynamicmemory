@@ -15,7 +15,7 @@ Cardiac Image Segmentation Challenge (M&Ms), https://www.ub.edu/mnms/.
 
 After downloading it is necessary to preprocess the data by running:
 
-`python data_prep/data_prep_cardiac.py <download_path> <dataset_path>`
+```python data_prep/data_prep_cardiac.py <download_path> <dataset_path>```
 
 where `<download_path>` is the directory where the M&Ms dataset was downloaded to, and `<dataset_path>` is where the preprocessed data is stored.
 

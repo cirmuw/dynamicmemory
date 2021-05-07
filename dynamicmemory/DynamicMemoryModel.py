@@ -14,7 +14,6 @@ import utils as dmutils
 from dynamicmemory.DynamicMemory import DynamicMemory, MemoryItem
 from abc import ABC, abstractmethod
 
-
 class DynamicMemoryModel(pl.LightningModule, ABC):
 
     def init(self, hparams={}, modeldir = None, device=torch.device('cpu'), training=True):
@@ -23,7 +22,7 @@ class DynamicMemoryModel(pl.LightningModule, ABC):
         self.modeldir = modeldir
 
         # load model according to hparams
-        self.model, self.stylemodel, self.gramlayers = dmutils.load_model_stylemodel(self.hparams.task)
+        self.model, self.stylemodel, self.gramlayers = self.load_model_stylemodel()
         self.stylemodel.to(device)
 
         self.forcemisclassified = True if 'force_misclassified' in self.hparams else False
@@ -228,4 +227,8 @@ class DynamicMemoryModel(pl.LightningModule, ABC):
 
     @abstractmethod
     def get_task_loss(self, x, y):
+        pass
+
+    @abstractmethod
+    def load_model_stylemodel(self, stylelayers=2):
         pass

@@ -3,7 +3,8 @@ from dataset.ContinuousDataset import *
 sys.path.append('../')
 import utils as dmutils
 from dynamicmemory.DynamicMemoryModel import DynamicMemoryModel
-
+import torchvision.models as models
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 class LIDCDynamicMemoryModel(DynamicMemoryModel):
     def __init__(self, hparams={}, modeldir = None, device=torch.device('cpu'), training=True):
@@ -40,6 +41,24 @@ class LIDCDynamicMemoryModel(DynamicMemoryModel):
 
     def forward_lidc(self, x, y):
         return self.model(x, y)
+
+    def load_model_stylemodel(stylelayers=2):
+        stylemodel = models.resnet50(pretrained=True)
+
+        num_classes = 3  # 0=background, 1=begnin, 2=malignant
+        # load a model pre-trained pre-trained on COCO
+        model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        in_features = model.roi_heads.box_predictor.cls_score.in_features
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+        if stylelayers == 1:
+            gramlayers = [stylemodel.layer1[-1].conv1]
+        elif stylelayers == 2:
+            gramlayers = [stylemodel.layer1[-1].conv1,
+                          stylemodel.layer2[-1].conv1]
+        stylemodel.eval()
+
+        return model, stylemodel, gramlayers
 
     def validation_step(self, batch, batch_idx):
         self.grammatrices = []
