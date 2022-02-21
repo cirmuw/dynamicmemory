@@ -25,7 +25,7 @@ def train_paper():
         params['trainparams']['memorymaximum'] = 64
         params['trainparams']['run_postfix'] = i+1
         params['trainparams']['seed'] = seed
-        dmodel.trained_model(params['trainparams'], params['settings'])
+        trained_model(params['trainparams'], params['settings'])
 
         params['trainparams']['memorymaximum'] = 128
         trained_model(params['trainparams'], params['settings'])
@@ -80,9 +80,9 @@ def trained_model(hparams, settings, training=True):
     os.makedirs(settings.RESULT_DIR, exist_ok=True)
 
     if hparams['task'] == 'cardiac':
-        model = CardiacDynamicMemoryModel(hparams=hparams, modeldir=settings.TRAINED_MODELS_DIR, device=device, training=training)
+        model = CardiacDynamicMemoryModel(mparams=hparams, modeldir=settings.TRAINED_MODELS_DIR, device=device, training=training)
     elif hparams['task'] == 'lidc':
-        model = LIDCDynamicMemoryModel(hparams=hparams, modeldir=settings.TRAINED_MODELS_DIR, device=device, training=training)
+        model = LIDCDynamicMemoryModel(mparams=hparams, modeldir=settings.TRAINED_MODELS_DIR, device=device, training=training)
 
     exp_name = dmutils.get_expname(hparams)
     print('expname', exp_name)
@@ -92,7 +92,7 @@ def trained_model(hparams, settings, training=True):
         if training:
             logger = dmutils.pllogger(hparams, settings.LOGGING_DIR)
             trainer = Trainer(gpus=1, max_epochs=1, logger=logger,
-                              val_check_interval=model.hparams.val_check_interval,
+                              val_check_interval=5,
                               checkpoint_callback=False, progress_bar_refresh_rate=0)
             trainer.fit(model)
             model.freeze()
@@ -104,10 +104,11 @@ def trained_model(hparams, settings, training=True):
             model = None
     else:
         print('Read: ' + cached_path(hparams, settings.TRAINED_MODELS_DIR))
-        model.load_state_dict(torch.load(cached_path(hparams, settings.TRAINED_MODELS_DIR), map_location=device))
-        model.freeze()
+        if not training:
+            model.load_state_dict(torch.load(cached_path(hparams, settings.TRAINED_MODELS_DIR), map_location=device))
+            model.freeze()
 
-    if model.hparams.continuous and model.hparams.use_memory:
+    if model.mparams.continuous and model.mparams.use_memory:
         if os.path.exists(settings.TRAINED_MEMORY_DIR + exp_name + '.csv'):
             df_memory = pd.read_csv(settings.TRAINED_MEMORY_DIR + exp_name + '.csv')
         else:
@@ -147,4 +148,5 @@ if __name__ == "__main__":
         train_paper()
     elif args.config is not None:
         train_config(args.config)
+
 
