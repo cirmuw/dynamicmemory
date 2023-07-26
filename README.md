@@ -1,5 +1,7 @@
 # Dynamic memory to alleviate catastrophic forgetting in continual learning with medical imaging
 
+Code corresponding to the paper Perkonigg, M., Hofmanninger, J., Herold, C.J. et al. Dynamic memory to alleviate catastrophic forgetting in continual learning with medical imaging. Nat Commun 12, 5678 (2021). https://doi.org/10.1038/s41467-021-25858-z
+
 **1. Requirements**
 
 All experiments are performed with PyTorch 1.7.1 using Python 3.6. The requirements are given in `requirements.txt`.
